@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="no" class="dark">
+<html lang="en" class="dark">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>P2P NAT Hole Punching 3D Studio — Offline Direkteforbindelse</title>
+    <title>OneChat — Offline Direct P2P Connection</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- Three.js r128 -->
@@ -142,9 +142,17 @@
                 pointer-events: auto !important;
             }
         }
+
+        /* Basic / Advanced view switching */
+        body.basic-mode .adv-only { display: none !important; }
+        body:not(.basic-mode) .basic-only { display: none !important; }
+        body.basic-mode #onechat-overlay {
+            top: 52px !important;
+            height: calc(100dvh - 52px) !important;
+        }
     </style>
 </head>
-<body class="font-sans antialiased select-none">
+<body class="font-sans antialiased select-none basic-mode">
 
     <!-- 3D WebGL Canvas Container -->
     <div id="webgl-container"></div>
@@ -153,10 +161,140 @@
     <div id="labels-container" class="fixed inset-0 pointer-events-none z-10 overflow-hidden"></div>
 
     <!-- Toast Notification Box (No alert/confirm) -->
-    <div id="toast-container" class="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-50 flex flex-col gap-2 w-[92vw] max-w-md pointer-events-none"></div>
+    <div id="toast-container" class="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[90] flex flex-col gap-2 w-[92vw] max-w-md pointer-events-none"></div>
+
+        <!-- ================= BASIC VIEW: CONNECT + ONECHAT ONLY ================= -->
+    <div id="basic-view" class="fixed inset-0 z-[55] flex flex-col bg-[#050811] text-slate-200">
+        <!-- Basic top bar -->
+        <header id="basic-header" class="shrink-0 h-[52px] px-2 sm:px-3 flex items-center gap-2 sm:gap-3 hud-glass border-t-0 border-x-0 relative z-[65]">
+            <!-- Site QR (flush against the brand) + brand -->
+            <div class="flex items-center min-w-0">
+                <a href="https://joranlager.github.io/OneChat/" target="_blank" rel="noopener" title="joranlager.github.io/OneChat" class="shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
+                    <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10"></div>
+                </a>
+                <div class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg bg-cyan-500/15 border border-cyan-400/40 flex items-center justify-center text-cyan-400 shadow-inner">
+                    <i class="fa-solid fa-shield-halved text-base"></i>
+                </div>
+                <div class="hidden sm:block pl-2 min-w-0">
+                    <div class="font-bold text-sm text-white leading-tight">OneChat</div>
+                    <div class="text-[10px] text-slate-400 leading-tight truncate">Direct P2P chat — no servers</div>
+                </div>
+            </div>
+
+            <!-- Section tabs -->
+            <nav class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/70 text-xs ml-1 sm:ml-3">
+                <button id="basic-tab-connect" onclick="basicShowTab('connect')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow">
+                    <i class="fa-solid fa-qrcode"></i><span>Connect</span>
+                </button>
+                <button id="basic-tab-onechat" onclick="basicShowTab('onechat')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-amber-300 hover:text-yellow-200">
+                    <i id="basic-tab-lock" class="fa-solid fa-lock text-[10px] text-rose-400"></i>
+                    <i class="fa-solid fa-ghost text-yellow-400"></i><span>OneChat</span>
+                </button>
+            </nav>
+
+            <div class="ml-auto flex items-center gap-2 shrink-0">
+                <div id="basic-status-pill" class="flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300 font-mono">
+                    <span id="basic-status-dot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <span id="basic-status-text" class="hidden sm:inline text-[11px] font-semibold tracking-wider">NOT CONNECTED</span>
+                </div>
+                <button onclick="setViewMode('advanced')" class="min-h-[34px] px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-600/70 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Show the full 3D lab and advanced tools">
+                    <i class="fa-solid fa-sliders"></i><span class="hidden sm:inline">Advanced</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- CONNECT SECTION -->
+        <main id="basic-connect" class="flex-1 overflow-y-auto px-3 py-4 sm:py-8">
+            <div class="mx-auto w-full max-w-xl space-y-4">
+                <div>
+                    <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Connect</h2>
+                    <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pair two devices directly — no servers, no accounts. Swap two QR codes, an <strong class="text-cyan-300">Offer</strong> and an <strong class="text-emerald-300">Answer</strong>, by camera or through any chat app.</p>
+                </div>
+
+                <!-- Step: choose -->
+                <section id="basic-step-choose" class="space-y-3">
+                    <div class="grid gap-3 sm:grid-cols-2">
+                        <button onclick="basicStartHost()" class="p-4 rounded-2xl bg-cyan-950/50 hover:bg-cyan-950/80 border border-cyan-500/50 text-left transition active:scale-[0.99]">
+                            <div class="flex items-center gap-2 text-cyan-300 font-bold text-base"><i class="fa-solid fa-paper-plane"></i> Start a connection</div>
+                            <p class="text-xs text-slate-400 mt-1">Create an Offer QR code and send it to the other person.</p>
+                        </button>
+                        <button onclick="basicChooseJoin()" class="p-4 rounded-2xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/50 text-left transition active:scale-[0.99]">
+                            <div class="flex items-center gap-2 text-emerald-300 font-bold text-base"><i class="fa-solid fa-right-to-bracket"></i> Join a connection</div>
+                            <p class="text-xs text-slate-400 mt-1">Scan or paste an Offer QR code you received.</p>
+                        </button>
+                    </div>
+                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 cursor-pointer">
+                        <input id="basic-use-stun" type="checkbox" class="mt-0.5 w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <span><strong class="text-white">Connect across the internet</strong> — uses a public STUN server (stun.l.google.com) to discover your public address. Leave this off for devices on the same network; nothing then leaves your devices. The joining side switches this on automatically when the Offer needs it.</span>
+                    </label>
+                </section>
+
+                <!-- QR output card (Offer or Answer) -->
+                <section id="basic-qr-card" class="hidden hud-glass rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <span id="basic-qr-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono font-bold">STEP 1</span>
+                        <h3 id="basic-qr-title" class="font-bold text-white text-base">Your Offer</h3>
+                    </div>
+                    <p id="basic-qr-hint" class="text-xs text-slate-400 leading-relaxed"></p>
+                    <div class="flex justify-center">
+                        <img id="basic-qr-img" alt="QR code to copy, save or scan" class="w-full max-w-[320px] rounded-xl bg-white shadow-xl">
+                    </div>
+                    <div class="grid grid-cols-2 gap-2 text-xs font-semibold">
+                        <button onclick="basicCopyImage()" class="min-h-[42px] px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-1.5"><i class="fa-regular fa-copy"></i> Copy image</button>
+                        <button onclick="basicSaveImage()" class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-download"></i> Save image</button>
+                        <button id="basic-btn-share" onclick="basicShareImage()" class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-share-nodes"></i> Share…</button>
+                        <button onclick="basicCopyText()" class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-font"></i> Copy code as text</button>
+                    </div>
+                </section>
+
+                <!-- Scan / paste card -->
+                <section id="basic-scan-card" class="hidden hud-glass rounded-2xl p-4 space-y-3">
+                    <div class="flex items-center gap-2">
+                        <span id="basic-scan-badge" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[11px] font-mono font-bold">STEP 2</span>
+                        <h3 id="basic-scan-title" class="font-bold text-white text-base">Scan their Answer</h3>
+                    </div>
+                    <p id="basic-scan-hint" class="text-xs text-slate-400 leading-relaxed"></p>
+                    <div id="basic-camera-wrap" class="hidden relative rounded-xl overflow-hidden bg-black aspect-square max-w-[320px] mx-auto border border-cyan-500/40">
+                        <video id="basic-video" playsinline muted class="w-full h-full object-cover"></video>
+                        <canvas id="basic-scan-canvas" class="hidden"></canvas>
+                        <div class="absolute inset-6 border-2 border-cyan-300/70 rounded-xl pointer-events-none"></div>
+                    </div>
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-semibold">
+                        <button id="basic-btn-camera" onclick="basicToggleCamera()" class="min-h-[42px] px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-1.5"><i class="fa-solid fa-camera"></i> <span>Scan with camera</span></button>
+                        <label class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5 cursor-pointer">
+                            <i class="fa-solid fa-image"></i> Upload QR image
+                            <input type="file" accept="image/*" class="hidden" onchange="basicImageFileChosen(event)">
+                        </label>
+                        <button onclick="basicPasteFromClipboard()" class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-paste"></i> Paste</button>
+                    </div>
+                    <p class="text-[11px] text-slate-500">Tip: you can also press <kbd class="px-1 rounded bg-slate-800 border border-slate-700">Ctrl</kbd>+<kbd class="px-1 rounded bg-slate-800 border border-slate-700">V</kbd> anywhere on this page to paste a QR image or code you copied from a chat.</p>
+                    <details class="text-xs text-slate-400">
+                        <summary class="cursor-pointer hover:text-slate-200">Paste the code as text instead</summary>
+                        <div class="mt-2 space-y-2">
+                            <textarea id="basic-code-input" rows="3" placeholder="OC1:..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 font-mono text-xs text-cyan-200 focus:border-cyan-500 outline-none"></textarea>
+                            <button onclick="basicUseTypedCode()" class="min-h-[38px] px-4 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold">Use this code</button>
+                        </div>
+                    </details>
+                </section>
+
+                <!-- Connected card -->
+                <section id="basic-done-card" class="hidden rounded-2xl p-5 bg-emerald-950/50 border border-emerald-400/50 text-center space-y-3">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl"><i class="fa-solid fa-link"></i></div>
+                    <h3 class="text-lg font-extrabold text-white">Connected!</h3>
+                    <p class="text-xs text-slate-300">A direct, encrypted peer-to-peer link is open. Nothing goes through a server.</p>
+                    <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
+                </section>
+
+                <p id="basic-status-line" class="hidden text-xs text-center text-slate-400"></p>
+                <div class="text-center">
+                    <button id="basic-btn-reset" onclick="basicReset(true)" class="hidden text-xs text-slate-400 hover:text-white underline underline-offset-2">Start over</button>
+                </div>
+            </div>
+        </main>
+    </div>
 
     <!-- ================= COMPACT RESPONSIVE TOP BAR HUD ================= -->
-    <header class="fixed top-0 left-0 right-0 z-30 px-2.5 py-2 sm:px-4 sm:py-2.5 flex flex-col gap-2 hud-glass border-t-0 border-x-0">
+    <header id="advanced-header" class="fixed top-0 left-0 right-0 z-30 px-2.5 py-2 sm:px-4 sm:py-2.5 flex flex-col gap-2 hud-glass border-t-0 border-x-0">
         <div class="flex items-center justify-between gap-2">
             <!-- Brand & Title (QR code is the first item so it always sits flush against the brand icon) -->
             <div class="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -171,10 +309,10 @@
                     <div class="flex items-center gap-1.5">
                         <h1 class="font-bold text-xs sm:text-base tracking-tight text-white truncate">NAT HOLE PUNCH <span class="text-cyan-400 font-mono text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30">3D P2P</span></h1>
                         <span class="hidden xl:inline-flex items-center gap-1 text-[11px] font-mono text-emerald-300 bg-emerald-950/70 border border-emerald-500/30 px-2 py-0.5 rounded-full">
-                            <i class="fa-solid fa-plug-circle-xmark text-[10px]"></i> 0 Internett-tjenester
+                            <i class="fa-solid fa-plug-circle-xmark text-[10px]"></i> 0 Internet services
                         </span>
                     </div>
-                    <p class="text-[11px] text-slate-400 hidden md:block truncate">Direkte OneGiver ↔ OneReceiver gjennom to brannmurer uten STUN eller skyservere</p>
+                    <p class="text-[11px] text-slate-400 hidden md:block truncate">Direct OneGiver ↔ OneReceiver through two firewalls — no STUN or cloud servers</p>
                 </div>
             </div>
 
@@ -182,11 +320,11 @@
             <div class="hidden lg:flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/70 text-xs">
                 <button id="mode-btn-webrtc" onclick="switchAppMode('webrtc')" class="px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1.5 bg-cyan-600 text-white shadow">
                     <i class="fa-solid fa-network-wired"></i>
-                    <span>Ekte WebRTC (Uten STUN)</span>
+                    <span>Real WebRTC (No STUN)</span>
                 </button>
                 <button id="mode-btn-pybridge" onclick="switchAppMode('pybridge')" class="px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1.5 text-slate-300 hover:text-white">
                     <i class="fa-brands fa-python text-amber-400"></i>
-                    <span>Rå UDP Bro (Python)</span>
+                    <span>Raw UDP Bridge (Python)</span>
                 </button>
                 <button id="mode-btn-sim" onclick="switchAppMode('sim')" class="px-2.5 py-1.5 rounded-md font-medium transition-all flex items-center gap-1.5 text-slate-300 hover:text-white">
                     <i class="fa-solid fa-cubes text-emerald-400"></i>
@@ -205,11 +343,11 @@
                 <!-- Connection Status Badge -->
                 <div id="conn-status-badge" class="flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300">
                     <span id="conn-status-dot" class="w-2 h-2 rounded-full bg-rose-500 animate-ping"></span>
-                    <span id="conn-status-text" class="font-semibold tracking-wider text-[10px] sm:text-[11px]">LÅST</span>
+                    <span id="conn-status-text" class="font-semibold tracking-wider text-[10px] sm:text-[11px]">LOCKED</span>
                 </div>
 
                 <!-- NAT TTL Compact Pill -->
-                <div class="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900/80 border border-slate-700/80" title="NAT Tilstand TTL">
+                <div class="flex items-center gap-1.5 px-2 py-1 sm:px-2.5 sm:py-1.5 rounded-lg bg-slate-900/80 border border-slate-700/80" title="NAT State TTL">
                     <i class="fa-solid fa-hourglass-half text-cyan-400 text-[10px] sm:text-xs"></i>
                     <span id="nat-ttl-value" class="text-cyan-300 font-bold text-[10px] sm:text-xs">0.0s</span>
                     <div class="hidden sm:block w-12 h-1.5 bg-slate-800 rounded-full overflow-hidden">
@@ -223,8 +361,13 @@
                     <span id="ping-rtt-value" class="text-white font-bold">-- ms</span>
                 </div>
 
+                <!-- Back to the Basic view -->
+                <button onclick="setViewMode('basic')" class="min-h-[36px] sm:min-h-[38px] px-2.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-sans font-semibold text-[11px] sm:text-xs flex items-center gap-1.5 transition" title="Back to the Basic view">
+                    <i class="fa-solid fa-house"></i><span class="hidden sm:inline">Basic</span>
+                </button>
+
                 <!-- Auto-fit Camera Button (Portrait/Landscape helper) -->
-                <button onclick="autoFitCameraForScreen(true)" class="min-w-[36px] min-h-[36px] sm:min-w-[38px] sm:min-h-[38px] px-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-cyan-500/30 text-cyan-300 flex items-center justify-center transition" title="Auto-tilpass 3D-kamera til skjermen">
+                <button onclick="autoFitCameraForScreen(true)" class="min-w-[36px] min-h-[36px] sm:min-w-[38px] sm:min-h-[38px] px-2 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-cyan-500/30 text-cyan-300 flex items-center justify-center transition" title="Auto-fit 3D camera to screen">
                     <i class="fa-solid fa-expand text-xs sm:text-sm"></i>
                 </button>
             </div>
@@ -237,26 +380,26 @@
         <div class="flex items-center justify-between gap-1 pointer-events-auto">
             <div class="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md px-2.5 py-1 rounded-full border border-slate-700/80 text-[10px] text-slate-300">
                 <i class="fa-solid fa-hand-pointer text-cyan-400"></i>
-                <span>1-finger: Roter • 2-finger: Zoom/Pan</span>
+                <span>1-finger: Rotate • 2-finger: Zoom/Pan</span>
             </div>
             <div class="flex items-center gap-1 bg-slate-950/85 backdrop-blur-md p-1 rounded-full border border-slate-700/80 text-[10px]">
-                <button onclick="setCameraPreset('overview')" class="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 font-medium">Oversikt</button>
+                <button onclick="setCameraPreset('overview')" class="px-2 py-0.5 rounded-full bg-cyan-950 text-cyan-300 font-medium">Overview</button>
                 <button onclick="setCameraPreset('fwA')" class="px-2 py-0.5 rounded-full text-slate-300">FW A</button>
                 <button onclick="setCameraPreset('fwB')" class="px-2 py-0.5 rounded-full text-slate-300">FW B</button>
-                <button onclick="setCameraPreset('top')" class="px-2 py-0.5 rounded-full text-slate-300">Topp</button>
+                <button onclick="setCameraPreset('top')" class="px-2 py-0.5 rounded-full text-slate-300">Top</button>
             </div>
         </div>
 
         <!-- Horizontal Swipeable Scenario Bar for Mobile -->
         <div class="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-1 px-1.5 rounded-xl hud-glass pointer-events-auto">
             <button onclick="runSimulationScenario('blocked')" class="min-h-[42px] px-3 py-1.5 rounded-lg bg-rose-950/85 active:bg-rose-900 border border-rose-500/40 text-rose-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-ban text-rose-400"></i> 1. Blokkert
+                <i class="fa-solid fa-ban text-rose-400"></i> 1. Blocked
             </button>
             <button onclick="runSimulationScenario('punch')" class="min-h-[42px] px-3 py-1.5 rounded-lg bg-cyan-950/90 active:bg-cyan-900 border border-cyan-400/60 text-cyan-200 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 shrink-0 shadow">
-                <i class="fa-solid fa-bolt text-cyan-300"></i> 2. Synkron Punch
+                <i class="fa-solid fa-bolt text-cyan-300"></i> 2. Synchronized Punch
             </button>
             <button onclick="runSimulationScenario('symmetric')" class="min-h-[42px] px-3 py-1.5 rounded-lg bg-amber-950/85 active:bg-amber-900 border border-amber-500/40 text-amber-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 shrink-0">
-                <i class="fa-solid fa-braille text-amber-400"></i> 3. Port-Spray
+                <i class="fa-solid fa-braille text-amber-400"></i> 3. Port Spray
             </button>
             <button onclick="runSimulationScenario('icmp')" class="min-h-[42px] px-3 py-1.5 rounded-lg bg-indigo-950/85 active:bg-indigo-900 border border-indigo-500/40 text-indigo-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 shrink-0">
                 <i class="fa-solid fa-code-merge text-indigo-400"></i> 4. ICMP Tunnel
@@ -269,20 +412,20 @@
         <!-- Mobile Drag Handle -->
         <div class="lg:hidden pt-2 pb-1 flex flex-col items-center justify-center bg-slate-900/80 border-b border-slate-800/80 cursor-pointer" onclick="switchMobileTab('3d')">
             <div class="w-12 h-1.5 rounded-full bg-slate-600 mb-1"></div>
-            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Trykk for å lukke skuff</span>
+            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Tap to close drawer</span>
         </div>
 
         <!-- Panel Header -->
         <div class="px-4 py-2.5 sm:py-3 border-b border-slate-700/70 flex items-center justify-between bg-slate-900/50">
             <div class="flex items-center gap-2">
                 <span class="w-6 h-6 rounded bg-cyan-500/20 border border-cyan-400/40 flex items-center justify-center text-cyan-300 font-mono text-xs font-bold">1</span>
-                <h2 class="font-semibold text-sm text-white">Koble til & Hullslåing (Offline)</h2>
+                <h2 class="font-semibold text-sm text-white">Connect & Hole Punching (Offline)</h2>
             </div>
             <div class="flex items-center gap-1">
-                <button onclick="switchMobileTab('3d')" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg" title="Lukk">
+                <button onclick="switchMobileTab('3d')" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg" title="Close">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
-                <button onclick="toggleDesktopPanel('left-panel', 'left-toggle-btn')" class="hidden lg:block text-slate-400 hover:text-white p-1 rounded" title="Minimer panel">
+                <button onclick="toggleDesktopPanel('left-panel', 'left-toggle-btn')" class="hidden lg:block text-slate-400 hover:text-white p-1 rounded" title="Minimize panel">
                     <i class="fa-solid fa-chevron-left text-xs"></i>
                 </button>
             </div>
@@ -297,7 +440,7 @@
                 </button>
                 <button id="m-mode-btn-pybridge" onclick="switchAppMode('pybridge')" class="min-h-[38px] py-1.5 px-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 text-slate-300">
                     <i class="fa-brands fa-python text-amber-400"></i>
-                    <span>UDP Bro</span>
+                    <span>UDP Bridge</span>
                 </button>
                 <button id="m-mode-btn-sim" onclick="switchAppMode('sim')" class="min-h-[38px] py-1.5 px-2 rounded-lg font-medium transition-all flex items-center justify-center gap-1 text-slate-300">
                     <i class="fa-solid fa-cubes text-emerald-400"></i>
@@ -310,21 +453,21 @@
         <div class="flex-1 overflow-y-auto p-3.5 space-y-4 text-xs">
             <!-- PC Role Selector -->
             <div class="bg-slate-900/70 p-2.5 rounded-xl border border-slate-800">
-                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Velg denne enhetens rolle:</label>
+                <label class="block text-[11px] font-semibold uppercase tracking-wider text-slate-400 mb-2">Choose this device's role:</label>
                 <div class="grid grid-cols-2 gap-2">
                     <button id="role-btn-a" onclick="selectRole('A')" class="min-h-[48px] p-2.5 rounded-lg border border-cyan-500/60 bg-cyan-950/50 text-left transition-all">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-cyan-300"><i class="fa-solid fa-paper-plane mr-1"></i> OneGiver</span>
                             <span class="w-2 h-2 rounded-full bg-cyan-400"></span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Initiator • Lager SDP Offer</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Initiator • Creates SDP Offer</p>
                     </button>
                     <button id="role-btn-b" onclick="selectRole('B')" class="min-h-[48px] p-2.5 rounded-lg border border-slate-700/80 bg-slate-900/60 text-left transition-all hover:border-slate-600">
                         <div class="flex items-center justify-between">
                             <span class="font-bold text-slate-300"><i class="fa-solid fa-satellite-dish mr-1"></i> OneReceiver</span>
                             <span class="w-2 h-2 rounded-full bg-slate-600"></span>
                         </div>
-                        <p class="text-[10px] text-slate-400 mt-0.5">Responder • Lager SDP Answer</p>
+                        <p class="text-[10px] text-slate-400 mt-0.5">Responder • Creates SDP Answer</p>
                     </button>
                 </div>
             </div>
@@ -333,20 +476,20 @@
             <div id="subview-webrtc" class="space-y-3.5">
                 <div class="p-2.5 rounded-lg bg-indigo-950/40 border border-indigo-500/30 text-[11px] text-indigo-200 leading-relaxed">
                     <i class="fa-solid fa-circle-info text-indigo-400 mr-1"></i>
-                    <strong>WebRTC uten STUN:</strong> Bruker <code class="font-mono text-cyan-300">iceServers: []</code>. Injiser ruterens WAN-IP og port manuelt i SDP-pakken slik at ICE slår hull direkte!
+                    <strong>WebRTC without STUN:</strong> Uses <code class="font-mono text-cyan-300">iceServers: []</code>. Inject the router's WAN IP and port manually into the SDP packet so ICE punches a hole directly!
                 </div>
 
                 <!-- Manual WAN IP / Port Candidate Injector -->
                 <div class="p-3 rounded-xl bg-slate-900/90 border border-cyan-500/30 space-y-2.5">
                     <div class="flex items-center justify-between">
                         <span class="font-semibold text-cyan-300 flex items-center gap-1.5">
-                            <i class="fa-solid fa-syringe"></i> Manuell WAN-IP Injeksjon
+                            <i class="fa-solid fa-syringe"></i> Manual WAN IP Injection
                         </span>
-                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">Erstatt STUN</span>
+                        <span class="text-[10px] font-mono bg-cyan-950 text-cyan-300 px-1.5 py-0.5 rounded border border-cyan-500/30">Replaces STUN</span>
                     </div>
                     <div class="grid grid-cols-3 gap-2">
                         <div class="col-span-2">
-                            <label class="text-[10px] text-slate-400 block mb-1">Egen Brannmur WAN-IP</label>
+                            <label class="text-[10px] text-slate-400 block mb-1">Own Firewall WAN IP</label>
                             <input id="manual-wan-ip" type="text" placeholder="203.0.113.10" value="203.0.113.10" class="w-full min-h-[42px] bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-white focus:border-cyan-400 focus:outline-none">
                         </div>
                         <div>
@@ -357,30 +500,30 @@
                     <div class="flex items-center justify-between pt-1">
                         <label class="flex items-center gap-2 text-[11px] text-slate-300 cursor-pointer min-h-[32px]">
                             <input id="inject-wan-checkbox" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
-                            <span>Injiser <code class="font-mono text-emerald-300">srflx/host</code> i SDP</span>
+                            <span>Inject <code class="font-mono text-emerald-300">srflx/host</code> into SDP</span>
                         </label>
-                        <button onclick="update3DEndpointLabels()" class="px-2 py-1 rounded bg-slate-800 text-[11px] text-cyan-400 hover:underline font-mono">Oppdater 3D</button>
+                        <button onclick="update3DEndpointLabels()" class="px-2 py-1 rounded bg-slate-800 text-[11px] text-cyan-400 hover:underline font-mono">Update 3D</button>
                     </div>
                 </div>
 
                 <!-- Step 1: Generate Offer (OneGiver) or Copy Answer (OneReceiver) -->
                 <div id="webrtc-step-1" class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
                     <div class="flex items-center justify-between gap-2">
-                        <span id="step1-title" class="font-semibold text-white">Steg 1 (OneGiver): Generer Tilkoblingspakke</span>
+                        <span id="step1-title" class="font-semibold text-white">Step 1 (OneGiver): Generate Connection Packet</span>
                         <button onclick="generateWebRTCOffer()" id="btn-gen-offer" class="min-h-[40px] px-3 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-semibold transition flex items-center gap-1.5 shadow shrink-0">
-                            <i class="fa-solid fa-bolt"></i> Lag SDP Offer
+                            <i class="fa-solid fa-bolt"></i> Create SDP Offer
                         </button>
                     </div>
-                    <textarea id="local-sdp-box" rows="2" readonly placeholder="Trykk 'Lag SDP Offer' for å samle lokale sockets og injisere WAN-kandidat..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-cyan-300 focus:outline-none"></textarea>
+                    <textarea id="local-sdp-box" rows="2" readonly placeholder="Press 'Create SDP Offer' to gather local sockets and inject the WAN candidate..." class="w-full bg-slate-950 border border-slate-800 rounded-lg p-2.5 font-mono text-xs text-cyan-300 focus:outline-none"></textarea>
                     <div class="grid grid-cols-3 gap-2">
-                        <button onclick="copyTextFrom('local-sdp-box', 'Lokal SDP-pakke kopiert!')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-center gap-1.5 border border-slate-700">
-                            <i class="fa-regular fa-copy"></i> Kopier
+                        <button onclick="copyTextFrom('local-sdp-box', 'Local SDP packet copied!')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-200 font-medium flex items-center justify-center gap-1.5 border border-slate-700">
+                            <i class="fa-regular fa-copy"></i> Copy
                         </button>
-                        <button onclick="shareSdpNative('local-sdp-box')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-medium flex items-center justify-center gap-1.5 border border-slate-700" title="Del via mobilens delingsmeny">
-                            <i class="fa-solid fa-share-nodes"></i> Del
+                        <button onclick="shareSdpNative('local-sdp-box')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-emerald-300 font-medium flex items-center justify-center gap-1.5 border border-slate-700" title="Share via the device share menu">
+                            <i class="fa-solid fa-share-nodes"></i> Share
                         </button>
-                        <button onclick="showQrModal('local-sdp-box')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-medium flex items-center justify-center gap-1.5 border border-slate-700" title="Vis Optisk QR-kode">
-                            <i class="fa-solid fa-qrcode"></i> QR-Kode
+                        <button onclick="showQrModal('local-sdp-box')" class="min-h-[42px] py-2 px-2 rounded-lg bg-slate-800 hover:bg-slate-700 text-cyan-300 font-medium flex items-center justify-center gap-1.5 border border-slate-700" title="Show Optical QR Code">
+                            <i class="fa-solid fa-qrcode"></i> QR Code
                         </button>
                     </div>
                 </div>
@@ -388,31 +531,31 @@
                 <!-- Step 2: Receive Remote SDP & Punch Hole -->
                 <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2.5">
                     <div class="flex items-center justify-between gap-1">
-                        <span id="step2-title" class="font-semibold text-white">Steg 2: Les motpartens SDP</span>
+                        <span id="step2-title" class="font-semibold text-white">Step 2: Read the peer's SDP</span>
                         <div class="flex items-center gap-1.5">
-                            <button onclick="openQrScannerModal()" class="text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 py-1 px-2.5 rounded-lg bg-amber-950/80 border border-amber-500/40 shadow" title="Skann QR-kode fra den andre skjermen med kamera">
-                                <i class="fa-solid fa-camera"></i> Skann QR
+                            <button onclick="openQrScannerModal()" class="text-[11px] font-semibold text-amber-300 hover:text-amber-200 flex items-center gap-1 py-1 px-2.5 rounded-lg bg-amber-950/80 border border-amber-500/40 shadow" title="Scan the QR code from the other screen with the camera">
+                                <i class="fa-solid fa-camera"></i> Scan QR
                             </button>
                             <button onclick="pasteIntoRemoteSdp()" class="text-[11px] font-mono text-cyan-400 hover:underline flex items-center gap-1 py-1 px-2 rounded-lg bg-slate-800/80 border border-slate-700">
-                                <i class="fa-solid fa-paste"></i> Lim inn
+                                <i class="fa-solid fa-paste"></i> Paste
                             </button>
                         </div>
                     </div>
-                    <textarea id="remote-sdp-box" rows="2" placeholder="Trykk 'Skann QR' for å lese QR-koden fra Initiator med kameraet, eller lim inn koden her..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 font-mono text-xs text-emerald-300 focus:border-emerald-500 focus:outline-none"></textarea>
+                    <textarea id="remote-sdp-box" rows="2" placeholder="Press 'Scan QR' to read the QR code from the Initiator with the camera, or paste the code here..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 font-mono text-xs text-emerald-300 focus:border-emerald-500 focus:outline-none"></textarea>
                     <button onclick="processRemoteSDP()" class="w-full min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50">
                         <i class="fa-solid fa-satellite-dish"></i>
-                        <span id="btn-process-sdp-label">Aktiver Motpart & Slå Hull i Brannmur</span>
+                        <span id="btn-process-sdp-label">Activate Peer & Punch Firewall Hole</span>
                     </button>
                 </div>
 
                 <!-- Gathered ICE Candidates Inspector -->
                 <div class="p-2.5 rounded-xl bg-slate-950/90 border border-slate-800/90">
                     <div class="flex items-center justify-between mb-1.5">
-                        <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">Aktive ICE Endepunkter i SDP:</span>
-                        <span id="ice-count-badge" class="text-[10px] font-mono text-cyan-400">0 kandidater</span>
+                        <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400">Active ICE Endpoints in SDP:</span>
+                        <span id="ice-count-badge" class="text-[10px] font-mono text-cyan-400">0 candidates</span>
                     </div>
                     <div id="ice-candidates-list" class="space-y-1 max-h-24 overflow-y-auto font-mono text-[10px] text-slate-400">
-                        <div class="text-slate-600 italic">Ingen kandidater generert ennå...</div>
+                        <div class="text-slate-600 italic">No candidates generated yet...</div>
                     </div>
                 </div>
             </div>
@@ -421,32 +564,32 @@
             <div id="subview-pybridge" class="hidden space-y-3.5">
                 <div class="p-2.5 rounded-lg bg-amber-950/40 border border-amber-500/30 text-[11px] text-amber-200 leading-relaxed">
                     <i class="fa-brands fa-python text-amber-400 mr-1"></i>
-                    <strong>Autonom Rå UDP-Bro:</strong> Låser UDP-port <code class="font-mono">51820</code>, slår hull i begge brannmurene uten STUN (inkludert port-scanning ved symmetrisk NAT), og kobler seg til denne 3D-appen via lokal WebSocket!
+                    <strong>Autonomous Raw UDP Bridge:</strong> Locks UDP port <code class="font-mono">51820</code>, punches holes in both firewalls without STUN (including port scanning for symmetric NAT), and connects to this 3D app via a local WebSocket!
                 </div>
 
                 <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
                     <div class="grid grid-cols-2 gap-2">
                         <div>
-                            <label class="text-[10px] text-slate-400 block mb-1">Motparts Brannmur WAN-IP</label>
+                            <label class="text-[10px] text-slate-400 block mb-1">Peer Firewall WAN IP</label>
                             <input id="py-peer-ip" type="text" value="198.51.100.25" oninput="refreshPythonScript()" class="w-full min-h-[42px] bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-white">
                         </div>
                         <div>
-                            <label class="text-[10px] text-slate-400 block mb-1">Fast UDP Port (Begge)</label>
+                            <label class="text-[10px] text-slate-400 block mb-1">Fixed UDP Port (Both)</label>
                             <input id="py-udp-port" type="number" value="51820" oninput="refreshPythonScript()" class="w-full min-h-[42px] bg-slate-950 border border-slate-700 rounded-lg px-2.5 py-1.5 font-mono text-xs text-white">
                         </div>
                     </div>
 
                     <div class="flex items-center justify-between pt-1">
                         <span class="text-[11px] font-semibold text-slate-300">WebSocket (<code class="text-amber-300">127.0.0.1:8765</code>):</span>
-                        <span id="ws-bridge-status" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Frakoblet</span>
+                        <span id="ws-bridge-status" class="text-[10px] font-mono px-2 py-0.5 rounded bg-slate-800 text-slate-400">Disconnected</span>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="connectLocalPythonBridge()" class="min-h-[44px] py-2 px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold transition flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-link"></i> Koble til Bro
+                            <i class="fa-solid fa-link"></i> Connect to Bridge
                         </button>
                         <button onclick="openPythonModal()" class="min-h-[44px] py-2 px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-amber-300 border border-amber-500/30 font-semibold transition flex items-center justify-center gap-1.5">
-                            <i class="fa-solid fa-code"></i> Vis / Last ned
+                            <i class="fa-solid fa-code"></i> Show / Download
                         </button>
                     </div>
                 </div>
@@ -456,31 +599,31 @@
             <div id="subview-sim" class="hidden space-y-3.5">
                 <div class="p-2.5 rounded-lg bg-emerald-950/40 border border-emerald-500/30 text-[11px] text-emerald-200 leading-relaxed">
                     <i class="fa-solid fa-flask text-emerald-400 mr-1"></i>
-                    <strong>3D Brannmur-Laboratorium:</strong> Konfigurer NAT-arkitekturen og start hullslåings-scenarier for å inspisere pakkene i 3D.
+                    <strong>3D Firewall Laboratory:</strong> Configure the NAT architecture and start hole punching scenarios to inspect the packets in 3D.
                 </div>
 
                 <div class="p-3 rounded-xl bg-slate-900/90 border border-slate-800 space-y-3">
                     <div>
-                        <label class="text-[11px] font-semibold text-slate-300 block mb-1">Brannmur A & B NAT-Arkitektur:</label>
+                        <label class="text-[11px] font-semibold text-slate-300 block mb-1">Firewall A & B NAT Architecture:</label>
                         <select id="sim-nat-type" onchange="onNatTypeChange()" class="w-full min-h-[44px] bg-slate-950 border border-slate-700 rounded-lg p-2 text-xs text-white font-medium focus:border-cyan-400 focus:outline-none">
-                            <option value="cone">Port-Restricted Cone NAT (Standard Hjemme/Bedrift)</option>
-                            <option value="symmetric">Symmetrisk NAT (Endrer port per destinasjon)</option>
-                            <option value="icmp">Streng Brannmur (Kun ICMP Ping / Echo Tillatt)</option>
+                            <option value="cone">Port-Restricted Cone NAT (Typical Home/Business)</option>
+                            <option value="symmetric">Symmetric NAT (Changes port per destination)</option>
+                            <option value="icmp">Strict Firewall (ICMP Ping / Echo Only)</option>
                         </select>
                     </div>
 
                     <div class="grid grid-cols-2 gap-2">
                         <button onclick="runSimulationScenario('blocked'); switchMobileTab('3d');" class="min-h-[54px] p-2.5 rounded-lg bg-rose-950/60 hover:bg-rose-900/70 border border-rose-500/40 text-left transition">
                             <div class="font-bold text-rose-300 flex items-center justify-between">
-                                <span>1. Uoppfordret</span>
+                                <span>1. Unsolicited</span>
                                 <i class="fa-solid fa-shield-virus"></i>
                             </div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">Blokkeres av brannmur</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Blocked by firewall</div>
                         </button>
 
                         <button onclick="runSimulationScenario('punch'); switchMobileTab('3d');" class="min-h-[54px] p-2.5 rounded-lg bg-cyan-950/60 hover:bg-cyan-900/70 border border-cyan-500/40 text-left transition">
                             <div class="font-bold text-cyan-300 flex items-center justify-between">
-                                <span>2. Synkron Punch</span>
+                                <span>2. Synchronized Punch</span>
                                 <i class="fa-solid fa-burst"></i>
                             </div>
                             <div class="text-[10px] text-slate-400 mt-0.5">Simultaneous UDP Open</div>
@@ -488,10 +631,10 @@
 
                         <button onclick="runSimulationScenario('symmetric'); switchMobileTab('3d');" class="min-h-[54px] p-2.5 rounded-lg bg-amber-950/60 hover:bg-amber-900/70 border border-amber-500/40 text-left transition">
                             <div class="font-bold text-amber-300 flex items-center justify-between">
-                                <span>3. Port-Spray</span>
+                                <span>3. Port Spray</span>
                                 <i class="fa-solid fa-braille"></i>
                             </div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">Symmetrisk NAT prediksjon</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Symmetric NAT prediction</div>
                         </button>
 
                         <button onclick="runSimulationScenario('icmp'); switchMobileTab('3d');" class="min-h-[54px] p-2.5 rounded-lg bg-indigo-950/60 hover:bg-indigo-900/70 border border-indigo-500/40 text-left transition">
@@ -499,16 +642,16 @@
                                 <span>4. ICMP Tunnel</span>
                                 <i class="fa-solid fa-wave-square"></i>
                             </div>
-                            <div class="text-[10px] text-slate-400 mt-0.5">Ping ID 0x1337 hullslåing</div>
+                            <div class="text-[10px] text-slate-400 mt-0.5">Ping ID 0x1337 hole punching</div>
                         </button>
                     </div>
 
                     <div class="pt-2 border-t border-slate-800 flex items-center justify-between">
                         <label class="flex items-center gap-2 text-xs text-slate-300 cursor-pointer min-h-[36px]">
                             <input id="auto-keepalive-toggle" type="checkbox" checked onchange="toggleAutoKeepAlive()" class="w-4 h-4 rounded border-slate-700 text-emerald-500">
-                            <span>Auto Keep-Alive (hvert 5. sek)</span>
+                            <span>Auto Keep-Alive (every 5 sec)</span>
                         </label>
-                        <button onclick="resetFirewallStates()" class="px-2.5 py-1.5 rounded bg-rose-950/60 border border-rose-500/30 text-[11px] text-rose-300 font-mono">Lukk Hull</button>
+                        <button onclick="resetFirewallStates()" class="px-2.5 py-1.5 rounded bg-rose-950/60 border border-rose-500/30 text-[11px] text-rose-300 font-mono">Close Hole</button>
                     </div>
                 </div>
             </div>
@@ -517,22 +660,22 @@
             <div class="p-3 rounded-xl bg-slate-950/90 border border-slate-800 space-y-2">
                 <div class="flex items-center justify-between">
                     <span class="text-[11px] font-semibold text-slate-300 flex items-center gap-1.5">
-                        <i class="fa-solid fa-table-list text-cyan-400"></i> Brannmurenes Tilstandstabeller (NAT State)
+                        <i class="fa-solid fa-table-list text-cyan-400"></i> Firewall State Tables (NAT State)
                     </span>
                 </div>
                 <div class="p-2 rounded bg-slate-900 border border-slate-800 font-mono text-[10px]">
                     <div class="flex justify-between text-slate-400 mb-0.5">
-                        <span>BRANNMUR A (Utgående tillatelse):</span>
-                        <span id="fw-a-badge" class="text-rose-400 font-bold">STENGT</span>
+                        <span>FIREWALL A (Outbound allow):</span>
+                        <span id="fw-a-badge" class="text-rose-400 font-bold">CLOSED</span>
                     </div>
-                    <div id="fw-a-rule" class="text-slate-500 truncate">Ingen aktiv tilstand — dropper inngående</div>
+                    <div id="fw-a-rule" class="text-slate-500 truncate">No active state — dropping inbound</div>
                 </div>
                 <div class="p-2 rounded bg-slate-900 border border-slate-800 font-mono text-[10px]">
                     <div class="flex justify-between text-slate-400 mb-0.5">
-                        <span>BRANNMUR B (Utgående tillatelse):</span>
-                        <span id="fw-b-badge" class="text-rose-400 font-bold">STENGT</span>
+                        <span>FIREWALL B (Outbound allow):</span>
+                        <span id="fw-b-badge" class="text-rose-400 font-bold">CLOSED</span>
                     </div>
-                    <div id="fw-b-rule" class="text-slate-500 truncate">Ingen aktiv tilstand — dropper inngående</div>
+                    <div id="fw-b-rule" class="text-slate-500 truncate">No active state — dropping inbound</div>
                 </div>
             </div>
         </div>
@@ -541,7 +684,7 @@
     <!-- Desktop Button to reopen Left Panel when minimized -->
     <button id="left-toggle-btn" onclick="toggleDesktopPanel('left-panel', 'left-toggle-btn')" class="hidden fixed top-20 left-3 z-20 px-3 py-2 rounded-lg hud-glass text-cyan-300 hover:text-white text-xs font-semibold items-center gap-2">
         <i class="fa-solid fa-sliders"></i>
-        <span>1. Hullslåing</span>
+        <span>1. Hole Punching</span>
     </button>
 
     <!-- ================= RIGHT PANEL / MOBILE SHEET 2 & 3: P2P CHAT, FILES & PACKET INSPECTOR ================= -->
@@ -549,20 +692,20 @@
         <!-- Mobile Drag Handle -->
         <div class="lg:hidden pt-2 pb-1 flex flex-col items-center justify-center bg-slate-900/80 border-b border-slate-800/80 cursor-pointer" onclick="switchMobileTab('3d')">
             <div class="w-12 h-1.5 rounded-full bg-slate-600 mb-1"></div>
-            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Trykk for å lukke skuff</span>
+            <span class="text-[10px] font-mono text-slate-400 uppercase tracking-wider">Tap to close drawer</span>
         </div>
 
         <!-- Panel Header -->
         <div class="px-4 py-2.5 sm:py-3 border-b border-slate-700/70 flex items-center justify-between bg-slate-900/50">
             <div class="flex items-center gap-2">
                 <span class="w-6 h-6 rounded bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-emerald-300 font-mono text-xs font-bold">2</span>
-                <h2 id="right-panel-title" class="font-semibold text-sm text-white">Direkte P2P-Kanal & Pakke-Logg</h2>
+                <h2 id="right-panel-title" class="font-semibold text-sm text-white">Direct P2P Channel & Packet Log</h2>
             </div>
             <div class="flex items-center gap-1">
-                <button onclick="switchMobileTab('3d')" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg" title="Lukk">
+                <button onclick="switchMobileTab('3d')" class="lg:hidden text-slate-400 hover:text-white p-1.5 rounded-lg" title="Close">
                     <i class="fa-solid fa-xmark text-base"></i>
                 </button>
-                <button onclick="toggleDesktopPanel('right-panel', 'right-toggle-btn')" class="hidden lg:block text-slate-400 hover:text-white p-1 rounded" title="Minimer panel">
+                <button onclick="toggleDesktopPanel('right-panel', 'right-toggle-btn')" class="hidden lg:block text-slate-400 hover:text-white p-1 rounded" title="Minimize panel">
                     <i class="fa-solid fa-chevron-right text-xs"></i>
                 </button>
             </div>
@@ -576,7 +719,7 @@
                     <i class="fa-solid fa-heart-pulse"></i> Send Keep-Alive
                 </button>
                 <button onclick="sendPingBurst()" class="min-h-[44px] py-2 px-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-950 border border-emerald-500/30 text-emerald-300 font-medium flex items-center justify-center gap-1.5 transition">
-                    <i class="fa-solid fa-satellite"></i> Mål P2P-RTT Ping
+                    <i class="fa-solid fa-satellite"></i> Measure P2P RTT Ping
                 </button>
             </div>
 
@@ -585,16 +728,16 @@
                 <!-- Encrypted P2P Chat Box -->
                 <div class="flex flex-col bg-slate-950/80 rounded-xl border border-slate-800 overflow-hidden h-52 sm:h-48">
                     <div class="px-3 py-2 bg-slate-900/90 border-b border-slate-800 flex items-center justify-between text-[11px]">
-                        <span class="font-semibold text-slate-300"><i class="fa-solid fa-lock text-emerald-400 mr-1"></i> Direkte Kryptert Meldingstunnel</span>
-                        <span id="chat-mode-indicator" class="font-mono text-[10px] text-amber-400">Simulert / Klar</span>
+                        <span class="font-semibold text-slate-300"><i class="fa-solid fa-lock text-emerald-400 mr-1"></i> Direct Encrypted Message Tunnel</span>
+                        <span id="chat-mode-indicator" class="font-mono text-[10px] text-amber-400">Simulated / Ready</span>
                     </div>
                     <div id="chat-messages" class="flex-1 p-2.5 overflow-y-auto space-y-2 font-sans text-xs">
                         <div class="text-[11px] text-slate-500 text-center py-4">
-                            Slå hull i brannmurene for å sende meldinger og filer direkte mellom OneGiver og OneReceiver.
+                            Punch holes in the firewalls to send messages and files directly between OneGiver and OneReceiver.
                         </div>
                     </div>
                     <form onsubmit="handleChatSubmit(event)" class="p-1.5 bg-slate-900 border-t border-slate-800 flex gap-1.5">
-                        <input id="chat-input" type="text" placeholder="Skriv direktemelding (UDP/SCTP)..." class="flex-1 min-h-[42px] bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white focus:border-cyan-400 focus:outline-none">
+                        <input id="chat-input" type="text" placeholder="Type a direct message (UDP/SCTP)..." class="flex-1 min-h-[42px] bg-slate-950 border border-slate-700/80 rounded-lg px-3 py-1.5 text-xs text-white focus:border-cyan-400 focus:outline-none">
                         <button type="submit" class="min-w-[44px] min-h-[42px] px-3.5 py-1.5 rounded-lg bg-cyan-600 hover:bg-cyan-500 active:bg-cyan-700 text-white font-semibold transition flex items-center justify-center">
                             <i class="fa-solid fa-paper-plane"></i>
                         </button>
@@ -605,21 +748,21 @@
                 <div class="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2">
                     <div class="flex items-center justify-between">
                         <span class="font-semibold text-white flex items-center gap-1.5">
-                            <i class="fa-solid fa-file-shield text-cyan-400"></i> Direkte P2P Filoverføring
+                            <i class="fa-solid fa-file-shield text-cyan-400"></i> Direct P2P File Transfer
                         </span>
                         <span id="file-speed-badge" class="text-[10px] font-mono text-emerald-400">0 KB/s</span>
                     </div>
                     <label class="min-h-[60px] flex flex-col items-center justify-center p-3 border border-dashed border-slate-700 hover:border-cyan-400 rounded-xl bg-slate-950/60 cursor-pointer transition">
                         <div class="flex items-center gap-2 text-slate-300 font-medium">
                             <i class="fa-solid fa-cloud-arrow-up text-cyan-400 text-base"></i>
-                            <span>Trykk for å sende fil gjennom hullet</span>
+                            <span>Tap to send a file through the hole</span>
                         </div>
-                        <span class="text-[10px] text-slate-500 mt-0.5">Deles i 16 KB UDP-fragmenter (Ekte + 3D-sverm)</span>
+                        <span class="text-[10px] text-slate-500 mt-0.5">Split into 16 KB UDP fragments (Real + 3D swarm)</span>
                         <input id="file-input" type="file" class="hidden" onchange="handleFileSelect(event)">
                     </label>
                     <div id="file-progress-wrap" class="hidden space-y-1">
                         <div class="flex justify-between text-[10px] font-mono text-slate-300">
-                            <span id="file-name-label" class="truncate max-w-[200px]">fil.bin</span>
+                            <span id="file-name-label" class="truncate max-w-[200px]">file.bin</span>
                             <span id="file-pct-label">0%</span>
                         </div>
                         <div class="w-full h-2 bg-slate-800 rounded-full overflow-hidden">
@@ -634,9 +777,9 @@
             <div id="right-section-log" class="flex-1 flex flex-col bg-slate-950 rounded-xl border border-slate-800 overflow-hidden min-h-[180px]">
                 <div class="px-3 py-2 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
                     <span class="text-[10px] font-mono uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                        <i class="fa-solid fa-terminal text-cyan-400"></i> Sanntids Pakke-Inspektør
+                        <i class="fa-solid fa-terminal text-cyan-400"></i> Real-time Packet Inspector
                     </span>
-                    <button onclick="clearPacketLog()" class="text-[11px] text-slate-400 hover:text-white font-mono px-2 py-0.5 rounded bg-slate-800">Tøm</button>
+                    <button onclick="clearPacketLog()" class="text-[11px] text-slate-400 hover:text-white font-mono px-2 py-0.5 rounded bg-slate-800">Clear</button>
                 </div>
                 <div id="packet-log" class="flex-1 p-2.5 overflow-y-auto font-mono text-[10px] space-y-1.5 leading-relaxed max-h-60 lg:max-h-none"></div>
             </div>
@@ -646,21 +789,21 @@
     <!-- Desktop Button to reopen Right Panel when minimized -->
     <button id="right-toggle-btn" onclick="toggleDesktopPanel('right-panel', 'right-toggle-btn')" class="hidden fixed top-20 right-3 z-20 px-3 py-2 rounded-lg hud-glass text-emerald-300 hover:text-white text-xs font-semibold items-center gap-2">
         <i class="fa-solid fa-comments"></i>
-        <span>2. P2P-Kanal</span>
+        <span>2. P2P Channel</span>
     </button>
 
     <!-- ================= DESKTOP BOTTOM INTERACTIVE 3D TIMELINE & CAMERA BAR ================= -->
     <footer class="hidden lg:flex fixed bottom-3 left-1/2 -translate-x-1/2 z-20 w-[96vw] max-w-5xl rounded-xl hud-glass px-3 py-2 flex-wrap items-center justify-between gap-2">
         <div class="flex items-center gap-1.5 overflow-x-auto py-0.5">
-            <span class="text-[10px] font-mono uppercase text-slate-400 mr-1"><i class="fa-solid fa-play mr-1 text-cyan-400"></i>Visualiser:</span>
+            <span class="text-[10px] font-mono uppercase text-slate-400 mr-1"><i class="fa-solid fa-play mr-1 text-cyan-400"></i>Visualize:</span>
             <button onclick="runSimulationScenario('blocked')" class="px-2.5 py-1.5 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-rose-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-ban text-rose-400"></i> 1. Blokkert (Uten Hull)
+                <i class="fa-solid fa-ban text-rose-400"></i> 1. Blocked (No Hole)
             </button>
             <button onclick="runSimulationScenario('punch')" class="px-2.5 py-1.5 rounded-lg bg-cyan-950/90 hover:bg-cyan-900 border border-cyan-400/50 text-cyan-200 text-xs font-semibold whitespace-nowrap flex items-center gap-1.5 transition shadow">
-                <i class="fa-solid fa-bolt text-cyan-300"></i> 2. Synkron UDP Hole Punch
+                <i class="fa-solid fa-bolt text-cyan-300"></i> 2. Synchronized UDP Hole Punch
             </button>
             <button onclick="runSimulationScenario('symmetric')" class="px-2.5 py-1.5 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-amber-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition">
-                <i class="fa-solid fa-braille text-amber-400"></i> 3. Symmetrisk Port-Spray
+                <i class="fa-solid fa-braille text-amber-400"></i> 3. Symmetric Port Spray
             </button>
             <button onclick="runSimulationScenario('icmp')" class="px-2.5 py-1.5 rounded-lg bg-indigo-950/80 hover:bg-indigo-900 border border-indigo-500/40 text-indigo-200 text-xs font-medium whitespace-nowrap flex items-center gap-1.5 transition">
                 <i class="fa-solid fa-code-merge text-indigo-400"></i> 4. ICMP Ping Tunnel
@@ -669,24 +812,24 @@
 
         <div class="flex items-center gap-1.5 ml-auto">
             <div class="flex items-center bg-slate-900/90 rounded-lg p-0.5 border border-slate-700/70 text-[11px]">
-                <button onclick="setCameraPreset('overview')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition">Oversikt</button>
-                <button onclick="setCameraPreset('fwA')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-cyan-300 hover:text-white transition">Brannmur A</button>
-                <button onclick="setCameraPreset('fwB')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-emerald-300 hover:text-white transition">Brannmur B</button>
-                <button onclick="setCameraPreset('top')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition">Topp</button>
+                <button onclick="setCameraPreset('overview')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition">Overview</button>
+                <button onclick="setCameraPreset('fwA')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-cyan-300 hover:text-white transition">Firewall A</button>
+                <button onclick="setCameraPreset('fwB')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-emerald-300 hover:text-white transition">Firewall B</button>
+                <button onclick="setCameraPreset('top')" class="px-2.5 py-1 rounded hover:bg-slate-800 text-slate-300 hover:text-white transition">Top</button>
             </div>
         </div>
     </footer>
 
     <!-- ================= MOBILE BOTTOM NAVIGATION BAR (<1024px) ================= -->
-    <nav class="lg:hidden fixed bottom-0 left-0 right-0 z-40 hud-glass border-b-0 border-x-0 safe-bottom">
+    <nav id="advanced-mobile-nav" class="lg:hidden fixed bottom-0 left-0 right-0 z-40 hud-glass border-b-0 border-x-0 safe-bottom">
         <div class="grid grid-cols-5 h-16 px-0.5">
             <button id="m-nav-3d" onclick="switchMobileTab('3d')" class="flex flex-col items-center justify-center gap-1 text-cyan-400 font-semibold transition">
                 <i class="fa-solid fa-cubes text-base"></i>
-                <span class="text-[10px]">3D Scener</span>
+                <span class="text-[10px]">3D Scenes</span>
             </button>
             <button id="m-nav-connect" onclick="switchMobileTab('connect')" class="flex flex-col items-center justify-center gap-1 text-slate-400 font-medium transition">
                 <i class="fa-solid fa-satellite-dish text-base"></i>
-                <span class="text-[10px]">Koble til</span>
+                <span class="text-[10px]">Connect</span>
             </button>
             <button id="m-nav-onechat" onclick="openOneChatTab()" class="flex flex-col items-center justify-center gap-1 text-yellow-400 font-bold transition relative">
                 <div class="relative">
@@ -697,11 +840,11 @@
             </button>
             <button id="m-nav-chat" onclick="switchMobileTab('chat')" class="flex flex-col items-center justify-center gap-1 text-slate-400 font-medium transition relative">
                 <i class="fa-solid fa-file-shield text-base"></i>
-                <span class="text-[10px]">Rå Filer</span>
+                <span class="text-[10px]">Raw Files</span>
             </button>
             <button id="m-nav-log" onclick="switchMobileTab('log')" class="flex flex-col items-center justify-center gap-1 text-slate-400 font-medium transition">
                 <i class="fa-solid fa-terminal text-base"></i>
-                <span class="text-[10px]">NAT Logg</span>
+                <span class="text-[10px]">NAT Log</span>
             </button>
         </div>
     </nav>
@@ -715,18 +858,21 @@
                 <i class="fa-solid fa-ghost"></i>
             </div>
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/90 border border-rose-500/40 text-rose-300 text-xs font-mono mb-2">
-                <i class="fa-solid fa-lock"></i> Krever Aktiv P2P-Forbindelse
+                <i class="fa-solid fa-lock"></i> Requires Active P2P Connection
             </div>
-            <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">OneChat er låst inntil hull er slått</h2>
+            <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">OneChat is locked until the connection is established</h2>
             <p class="text-xs sm:text-sm text-slate-400 max-w-md mt-2 leading-relaxed">
-                Koble sammen <strong class="text-cyan-300">OneGiver</strong> og <strong class="text-emerald-300">OneReceiver</strong> gjennom brannmurene først for å låse opp direkte Snapchat-chat, Bilde-Snaps og P2P Videosamtale.
+                Connect <strong class="text-cyan-300">OneGiver</strong> and <strong class="text-emerald-300">OneReceiver</strong> through the firewalls first to unlock direct chat, picture Snaps and P2P video calls.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-3 mt-6">
-                <button onclick="quickConnectForOneChat()" class="min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition transform active:scale-95">
-                    <i class="fa-solid fa-bolt"></i> Slå Hull & Koble OneGiver ↔ OneReceiver Nå
+                <button onclick="basicShowTab('connect')" class="basic-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition transform active:scale-95">
+                    <i class="fa-solid fa-qrcode"></i> Go to Connect
                 </button>
-                <button onclick="closeOneChatTab()" class="min-h-[46px] px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm transition">
-                    Tilbake til 3D-Nettverk
+                <button onclick="quickConnectForOneChat()" class="adv-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition transform active:scale-95">
+                    <i class="fa-solid fa-bolt"></i> Punch Hole & Connect OneGiver ↔ OneReceiver Now
+                </button>
+                <button onclick="closeOneChatTab()" class="adv-only min-h-[46px] px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm transition">
+                    Back to 3D Network
                 </button>
             </div>
         </div>
@@ -734,7 +880,7 @@
         <!-- TOP MINIMAL FLOATING BAR: HAMBURGER MENU (TOP-LEFT), PEER PILL (CENTER), SETTINGS GEAR (TOP-RIGHT) -->
         <div class="absolute top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between pointer-events-none">
             <!-- Top-Left: Hamburger Menu Button -->
-            <button onclick="toggleOneChatHamburgerMenu()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-white flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="Meny">
+            <button onclick="toggleOneChatHamburgerMenu()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-white flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="Menu">
                 <i class="fa-solid fa-bars text-lg"></i>
             </button>
 
@@ -753,19 +899,19 @@
                         <span id="onechat-peer-title" class="font-extrabold text-xs sm:text-sm text-white">OneReceiver</span>
                         <span id="onechat-call-timer" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[10px] font-bold">00:00</span>
                     </div>
-                    <p id="onechat-role-subtitle" class="text-[10px] text-slate-300 leading-none">Du er <strong class="text-cyan-300">OneGiver</strong></p>
+                    <p id="onechat-role-subtitle" class="text-[10px] text-slate-300 leading-none">You are <strong class="text-cyan-300">OneGiver</strong></p>
                 </div>
-                <button onclick="startOneChatCall(false)" id="btn-onechat-audiocall" class="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-slate-700 text-cyan-300 flex items-center justify-center text-xs transition" title="Start P2P Lydsamtale">
+                <button onclick="startOneChatCall(false)" id="btn-onechat-audiocall" class="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-slate-700 text-cyan-300 flex items-center justify-center text-xs transition" title="Start P2P Audio Call">
                     <i class="fa-solid fa-phone"></i>
                 </button>
-                <button onclick="startOneChatCall(true)" id="btn-onechat-videocall" class="px-3 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow transition" title="Start P2P Videosamtale">
+                <button onclick="startOneChatCall(true)" id="btn-onechat-videocall" class="px-3 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow transition" title="Start P2P Video Call">
                     <i class="fa-solid fa-video"></i>
-                    <span class="hidden sm:inline">Videosamtale</span>
+                    <span class="hidden sm:inline">Video Call</span>
                 </button>
             </div>
 
             <!-- Top-Right: OneChat Settings Gear Button -->
-            <button onclick="toggleOneChatSettingsModal()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-yellow-300 flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="OneChat Innstillinger">
+            <button onclick="toggleOneChatSettingsModal()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-yellow-300 flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="OneChat Settings">
                 <i class="fa-solid fa-gear text-lg"></i>
             </button>
         </div>
@@ -774,34 +920,42 @@
         <div id="onechat-hamburger-drawer" class="hidden absolute top-16 left-4 z-50 w-72 rounded-2xl hud-glass border border-white/15 p-3 shadow-2xl space-y-2 text-xs">
             <div class="px-2 py-1.5 border-b border-slate-800 flex items-center justify-between">
                 <span class="font-extrabold text-yellow-400 flex items-center gap-1.5">
-                    <i class="fa-solid fa-ghost"></i> OneChat Navigasjon
+                    <i class="fa-solid fa-ghost"></i> OneChat Navigation
                 </span>
                 <button onclick="toggleOneChatHamburgerMenu()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
             </div>
 
-            <button onclick="toggleOneChatHamburgerMenu(); closeOneChatTab();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-cyan-300 font-semibold transition">
+            <button onclick="toggleOneChatHamburgerMenu(); basicShowTab('connect');" class="basic-only w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-cyan-300 font-semibold">
+                <i class="fa-solid fa-qrcode text-base w-5 text-center"></i>
+                <div>
+                    <div>Back to Connect</div>
+                    <div class="text-[10px] text-slate-400 font-normal">Pair with someone else</div>
+                </div>
+            </button>
+
+            <button onclick="toggleOneChatHamburgerMenu(); closeOneChatTab();" class="adv-only w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-cyan-300 font-semibold transition">
                 <i class="fa-solid fa-cubes text-base w-5 text-center"></i>
                 <div>
-                    <div>Tilbake til 3D-Nettverk</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Se brannmurer og UDP-pakker i 3D</div>
+                    <div>Back to 3D Network</div>
+                    <div class="text-[10px] text-slate-400 font-normal">See firewalls and UDP packets in 3D</div>
                 </div>
             </button>
 
             <button onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
                 <i class="fa-solid fa-right-left text-base w-5 text-center"></i>
                 <div>
-                    <div>Bytt Stort / Lite Kameravindu</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Veksle mellom eget kamera og motpart</div>
+                    <div>Swap Large / Small Camera Window</div>
+                    <div class="text-[10px] text-slate-400 font-normal">Switch between your camera and the peer</div>
                 </div>
             </button>
 
             <button onclick="toggleOneChatHamburgerMenu(); clearOneChatFeed();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-rose-300 font-semibold transition">
                 <i class="fa-solid fa-broom text-base w-5 text-center"></i>
                 <div>
-                    <div>Tøm OneChat-historikk</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Slett alle viste meldinger og Snaps</div>
+                    <div>Clear OneChat history</div>
+                    <div class="text-[10px] text-slate-400 font-normal">Delete all displayed messages and Snaps</div>
                 </div>
             </button>
         </div>
@@ -811,7 +965,7 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-gear text-yellow-400"></i>
-                    <span class="font-extrabold text-white text-sm">OneChat Innstillinger</span>
+                    <span class="font-extrabold text-white text-sm">OneChat Settings</span>
                 </div>
                 <button onclick="toggleOneChatSettingsModal()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
@@ -821,37 +975,37 @@
             <!-- Ephemeral Timer Setting -->
             <div class="space-y-1">
                 <label class="flex items-center justify-between text-slate-200 font-semibold cursor-pointer">
-                    <span>Selvdestruerende Snaps & Chat</span>
+                    <span>Self-destructing Snaps & Chat</span>
                     <input id="onechat-ephemeral-toggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 text-yellow-400 focus:ring-0">
                 </label>
                 <div class="flex items-center justify-between text-[11px] text-slate-400 pt-1">
-                    <span>Visningstid før utløp:</span>
+                    <span>Viewing time before expiry:</span>
                     <select id="onechat-snap-duration" onchange="updateOneChatSettings()" class="bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-yellow-300 font-mono text-[11px]">
-                        <option value="5">5 sekunder</option>
-                        <option value="10" selected>10 sekunder</option>
-                        <option value="30">30 sekunder</option>
+                        <option value="5">5 seconds</option>
+                        <option value="10" selected>10 seconds</option>
+                        <option value="30">30 seconds</option>
                     </select>
                 </div>
             </div>
 
             <!-- Video Stream Quality & FPS -->
             <div class="space-y-1 pt-2 border-t border-slate-800/80">
-                <label class="text-slate-200 font-semibold block">P2P Videostrøm-kvalitet:</label>
+                <label class="text-slate-200 font-semibold block">P2P Video Stream Quality:</label>
                 <select id="onechat-video-quality" onchange="updateOneChatSettings()" class="w-full bg-slate-900 border border-slate-700 rounded-lg p-2 text-xs text-cyan-300 font-medium">
-                    <option value="high">HD Lav Latens (WebRTC RTP + Høy FPS)</option>
-                    <option value="balanced" selected>Balansert P2P (WebRTC + Auto DataChannel Stream)</option>
-                    <option value="low">Lav Båndbredde (Komprimert UDP-strøm)</option>
+                    <option value="high">HD Low Latency (WebRTC RTP + High FPS)</option>
+                    <option value="balanced" selected>Balanced P2P (WebRTC + Auto DataChannel Stream)</option>
+                    <option value="low">Low Bandwidth (Compressed UDP stream)</option>
                 </select>
             </div>
 
             <!-- Mirror Local Camera & Show Telemetry -->
             <div class="space-y-2 pt-2 border-t border-slate-800/80">
                 <label class="flex items-center justify-between text-slate-300 cursor-pointer">
-                    <span>Speilvend eget frontkamera</span>
+                    <span>Mirror own front camera</span>
                     <input id="onechat-mirror-toggle" type="checkbox" checked onchange="updateOneChatSettings()" class="w-4 h-4 rounded border-slate-700 text-cyan-400">
                 </label>
                 <label class="flex items-center justify-between text-slate-300 cursor-pointer">
-                    <span>Bytt automatisk til motpart ved anrop</span>
+                    <span>Automatically switch to the peer on calls</span>
                     <input id="onechat-autoswap-toggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 text-emerald-400">
                 </label>
             </div>
@@ -885,16 +1039,16 @@
 
                     <!-- Swap Hint Badge shown on PiP window during call -->
                     <div id="onechat-pip-swap-badge" class="hidden absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/75 border border-white/20 text-[9px] font-mono text-yellow-300 flex items-center gap-1 shadow">
-                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i> Bytt
+                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i> Swap
                     </div>
                     <div id="onechat-local-label" class="hidden absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/75 text-[9px] font-mono text-cyan-300">
-                        Deg (<span id="onechat-local-role-tag">OneGiver</span>)
+                        You (<span id="onechat-local-role-tag">OneGiver</span>)
                     </div>
                 </div>
 
                 <!-- Snapchat Text Overlay Bar on Camera -->
                 <div id="onechat-caption-overlay" class="hidden absolute inset-x-0 top-1/2 -translate-y-1/2 z-30 bg-black/65 backdrop-blur-sm py-2.5 px-4">
-                    <input id="onechat-snap-caption" type="text" placeholder="Skriv en Snap-tekst..." class="w-full bg-transparent text-center text-white font-bold text-sm sm:text-base focus:outline-none">
+                    <input id="onechat-snap-caption" type="text" placeholder="Type a Snap caption..." class="w-full bg-transparent text-center text-white font-bold text-sm sm:text-base focus:outline-none">
                 </div>
 
                 <!-- Floating Camera Tools (Below Top Bar) -->
@@ -902,24 +1056,24 @@
                     <div class="flex items-center gap-2 pointer-events-auto">
                         <span id="onechat-call-badge" class="px-3 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/15 text-[11px] font-mono text-yellow-300 flex items-center gap-1.5">
                             <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-                            <span id="onechat-stage-status">Snap-Kamera Klar</span>
+                            <span id="onechat-stage-status">Snap Camera Ready</span>
                         </span>
                     </div>
 
                     <div class="flex items-center gap-1.5 pointer-events-auto">
                         <!-- Explicit Swap Main/PiP Video Button during Call -->
-                        <button id="btn-onechat-swap-pip" onclick="swapOneChatPipView()" class="hidden px-3 h-9 rounded-full bg-black/70 hover:bg-black/90 text-cyan-300 border border-cyan-400/40 flex items-center gap-1.5 text-[11px] font-bold shadow" title="Bytt hvem som har stort og lite kameravindu">
+                        <button id="btn-onechat-swap-pip" onclick="swapOneChatPipView()" class="hidden px-3 h-9 rounded-full bg-black/70 hover:bg-black/90 text-cyan-300 border border-cyan-400/40 flex items-center gap-1.5 text-[11px] font-bold shadow" title="Swap which camera window is large and small">
                             <i class="fa-solid fa-right-left"></i>
-                            <span id="onechat-swap-btn-text">Vis meg stort</span>
+                            <span id="onechat-swap-btn-text">Show me large</span>
                         </button>
-                        <button onclick="toggleOneChatCaption()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs font-bold" title="Legg til tekst på Snap">
+                        <button onclick="toggleOneChatCaption()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs font-bold" title="Add text to Snap">
                             T
                         </button>
-                        <button onclick="cycleOneChatFilter()" class="px-2.5 h-9 rounded-full bg-black/65 hover:bg-black/80 text-yellow-300 border border-white/15 flex items-center gap-1 text-[11px] font-semibold" title="Bytt AR/Fargefilter">
+                        <button onclick="cycleOneChatFilter()" class="px-2.5 h-9 rounded-full bg-black/65 hover:bg-black/80 text-yellow-300 border border-white/15 flex items-center gap-1 text-[11px] font-semibold" title="Change AR/Color filter">
                             <i class="fa-solid fa-wand-magic-sparkles"></i>
                             <span id="onechat-filter-label">Normal</span>
                         </button>
-                        <button onclick="flipOneChatCamera()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs" title="Snu kamera">
+                        <button onclick="flipOneChatCamera()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs" title="Flip camera">
                             <i class="fa-solid fa-camera-rotate"></i>
                         </button>
                     </div>
@@ -928,30 +1082,30 @@
                 <!-- Bottom Snapchat Shutter & Call Controls Bar -->
                 <div class="absolute bottom-4 inset-x-4 z-30 flex items-center justify-center gap-3 pointer-events-auto">
                     <!-- Mute Mic -->
-                    <button id="btn-onechat-mute" onclick="toggleOneChatMute()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-white flex items-center justify-center transition" title="Demp mikrofon">
+                    <button id="btn-onechat-mute" onclick="toggleOneChatMute()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-white flex items-center justify-center transition" title="Mute microphone">
                         <i id="icon-onechat-mute" class="fa-solid fa-microphone text-xs"></i>
                     </button>
 
                     <!-- Toggle Camera On/Off -->
-                    <button id="btn-onechat-camtoggle" onclick="toggleOneChatVideo()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-white flex items-center justify-center transition" title="Kamera av/på">
+                    <button id="btn-onechat-camtoggle" onclick="toggleOneChatVideo()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-white flex items-center justify-center transition" title="Camera on/off">
                         <i id="icon-onechat-cam" class="fa-solid fa-video text-xs"></i>
                     </button>
 
                     <!-- Big Yellow Snapchat Shutter Button (Takes & Sends Instant Snap!) -->
-                    <button onclick="captureAndSendSnap()" class="w-16 h-16 rounded-full border-4 border-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/40 active:scale-90 transition flex items-center justify-center shadow-xl" title="Ta og send Snap">
+                    <button onclick="captureAndSendSnap()" class="w-16 h-16 rounded-full border-4 border-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/40 active:scale-90 transition flex items-center justify-center shadow-xl" title="Capture and send Snap">
                         <div class="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-lg">
                             <i class="fa-solid fa-camera"></i>
                         </div>
                     </button>
 
                     <!-- Swap PiP Quick Button -->
-                    <button onclick="swapOneChatPipView()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-cyan-300 flex items-center justify-center transition" title="Bytt mellom eget kamera og motpartens video">
+                    <button onclick="swapOneChatPipView()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-cyan-300 flex items-center justify-center transition" title="Switch between your camera and the peer's video">
                         <i class="fa-solid fa-right-left text-xs"></i>
                     </button>
 
                     <!-- Hangup Call Button (Shown when in active call) -->
                     <button id="btn-onechat-hangup" onclick="endOneChatCall()" class="hidden px-4 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg">
-                        <i class="fa-solid fa-phone-slash"></i> Avslutt
+                        <i class="fa-solid fa-phone-slash"></i> End
                     </button>
                 </div>
             </div>
@@ -961,28 +1115,28 @@
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                     <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
-                        <div class="text-yellow-400 font-extrabold text-xs">👻 OneGiver & OneReceiver Fullskjerm</div>
-                        <p class="text-[11px] text-slate-400">Under videosamtale er eget kamera lite i hjørnet som standard. Trykk på det lille vinduet når som helst for å bytte hvem som er stor og liten!</p>
+                        <div class="text-yellow-400 font-extrabold text-xs">👻 OneGiver & OneReceiver Fullscreen</div>
+                        <p class="text-[11px] text-slate-400">During a video call your own camera is small in the corner by default. Tap the small window at any time to swap which one is large and small!</p>
                     </div>
                 </div>
 
                 <!-- Quick Reaction Bar -->
                 <div class="px-3 py-1.5 bg-slate-950/60 border-t border-slate-800/70 flex items-center justify-between text-sm">
-                    <span class="text-[10px] font-mono text-slate-400">Hurtig-Snap:</span>
+                    <span class="text-[10px] font-mono text-slate-400">Quick Snap:</span>
                     <div class="flex items-center gap-2">
-                        <button onclick="sendOneChatReaction('👋 Hei fra ' + getRoleName(APP_STATE.role) + '!')" class="hover:scale-125 transition">👋</button>
-                        <button onclick="sendOneChatReaction('⚡ Direkte gjennom brannmuren!')" class="hover:scale-125 transition">⚡</button>
-                        <button onclick="sendOneChatReaction('🔥 Beste P2P-tunnelen!')" class="hover:scale-125 transition">🔥</button>
-                        <button onclick="sendOneChatReaction('🎉 Videosamtale uten STUN!')" class="hover:scale-125 transition">🎉</button>
+                        <button onclick="sendOneChatReaction('👋 Hello from ' + getRoleName(APP_STATE.role) + '!')" class="hover:scale-125 transition">👋</button>
+                        <button onclick="sendOneChatReaction('⚡ Straight through the firewall!')" class="hover:scale-125 transition">⚡</button>
+                        <button onclick="sendOneChatReaction('🔥 Best P2P tunnel!')" class="hover:scale-125 transition">🔥</button>
+                        <button onclick="sendOneChatReaction('🎉 Video call without STUN!')" class="hover:scale-125 transition">🎉</button>
                     </div>
                 </div>
 
                 <!-- Snapchat Pill Input Bar -->
                 <form onsubmit="handleOneChatSubmit(event)" class="p-2.5 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-                    <button type="button" onclick="captureAndSendSnap()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Send Bilde-Snap">
+                    <button type="button" onclick="captureAndSendSnap()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Send Picture Snap">
                         <i class="fa-solid fa-camera text-xs"></i>
                     </button>
-                    <input id="onechat-input" type="text" placeholder="Send en chat til motparten..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
+                    <input id="onechat-input" type="text" placeholder="Send a chat to the peer..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
                     <button type="submit" class="px-4 min-h-[40px] rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 shrink-0 transition">
                         <span>Send</span>
                         <i class="fa-solid fa-paper-plane text-[10px]"></i>
@@ -993,10 +1147,10 @@
     </section>
 
     <!-- MODAL FOR VIEWING FULLSCREEN EPHEMERAL SNAP -->
-    <div id="snap-viewer-modal" onclick="closeSnapViewer()" class="hidden fixed inset-0 z-50 bg-black/95 flex flex-col items-center justify-center p-4 cursor-pointer">
+    <div id="snap-viewer-modal" onclick="closeSnapViewer()" class="hidden fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4 cursor-pointer">
         <div class="absolute top-4 right-4 flex items-center gap-2">
             <span id="snap-viewer-timer" class="w-9 h-9 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-sm flex items-center justify-center">10</span>
-            <span class="text-xs text-slate-300 font-mono">Trykk hvor som helst for å lukke</span>
+            <span class="text-xs text-slate-300 font-mono">Tap anywhere to close</span>
         </div>
         <img id="snap-viewer-img" src="" alt="Snap" class="max-w-full max-h-[82dvh] rounded-2xl border border-yellow-400/40 shadow-2xl object-contain">
         <div id="snap-viewer-caption" class="mt-3 px-4 py-2 rounded-xl bg-black/80 text-white font-bold text-sm text-center"></div>
@@ -1009,8 +1163,8 @@
                 <div class="flex items-center gap-2.5 min-w-0">
                     <i class="fa-brands fa-python text-amber-400 text-xl shrink-0"></i>
                     <div class="min-w-0">
-                        <h3 class="font-bold text-white text-xs sm:text-sm truncate">udp_hole_punch_bridge.py — Autonom Rå UDP Hullslåer</h3>
-                        <p class="text-[10px] sm:text-[11px] text-slate-400 truncate">Kjør på begge PC-ene for rå UDP-portbevaring (51820)</p>
+                        <h3 class="font-bold text-white text-xs sm:text-sm truncate">udp_hole_punch_bridge.py — Autonomous Raw UDP Hole Puncher</h3>
+                        <p class="text-[10px] sm:text-[11px] text-slate-400 truncate">Run on both PCs for raw UDP port preservation (51820)</p>
                     </div>
                 </div>
                 <button onclick="closePythonModal()" class="text-slate-400 hover:text-white p-2">
@@ -1019,20 +1173,20 @@
             </div>
             <div class="p-3.5 sm:p-4 overflow-y-auto flex-1 space-y-3 text-xs">
                 <div class="p-3 rounded-lg bg-slate-900/90 border border-slate-800 text-slate-300 leading-relaxed text-[11px]">
-                    <strong>Slik fungerer det:</strong> Binder seg direkte til fast kildeport (<code class="text-amber-300 font-mono">51820</code>) og sender synkrone UDP-pakker til motpartens brannmur. Når hullet er slått, kobles trafikken til denne 3D-webappen via <code class="text-cyan-300 font-mono">ws://127.0.0.1:8765</code>.
+                    <strong>How it works:</strong> Binds directly to a fixed source port (<code class="text-amber-300 font-mono">51820</code>) and sends synchronized UDP packets to the peer's firewall. Once the hole is punched, traffic is connected to this 3D web app via <code class="text-cyan-300 font-mono">ws://127.0.0.1:8765</code>.
                 </div>
                 <pre id="python-code-block" class="p-3 rounded-xl bg-slate-950 border border-slate-800 font-mono text-[10px] sm:text-[11px] text-emerald-300 overflow-x-auto leading-relaxed selectable"></pre>
             </div>
             <div class="px-4 py-3 bg-slate-900 border-t border-slate-800 flex flex-wrap items-center justify-between gap-2">
                 <div class="flex flex-wrap gap-2 w-full sm:w-auto">
-                    <button onclick="copyTextFrom('python-code-block', 'Python UDP-skript kopiert!')" class="flex-1 sm:flex-initial min-h-[42px] px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5">
-                        <i class="fa-regular fa-copy"></i> Kopier Skript
+                    <button onclick="copyTextFrom('python-code-block', 'Python UDP script copied!')" class="flex-1 sm:flex-initial min-h-[42px] px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-500 text-white font-semibold text-xs flex items-center justify-center gap-1.5">
+                        <i class="fa-regular fa-copy"></i> Copy Script
                     </button>
                     <button onclick="downloadPythonScript()" class="flex-1 sm:flex-initial min-h-[42px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-cyan-300 font-semibold text-xs flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-download"></i> Last ned .py
+                        <i class="fa-solid fa-download"></i> Download .py
                     </button>
                 </div>
-                <button onclick="closePythonModal()" class="w-full sm:w-auto min-h-[42px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">Lukk</button>
+                <button onclick="closePythonModal()" class="w-full sm:w-auto min-h-[42px] px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">Close</button>
             </div>
         </div>
     </div>
@@ -1043,7 +1197,7 @@
             <div class="px-5 py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-qrcode text-cyan-400"></i>
-                    <h3 id="qr-modal-title" class="font-bold text-white text-sm">Skannbar P2P QR-Kode</h3>
+                    <h3 id="qr-modal-title" class="font-bold text-white text-sm">Scannable P2P QR Code</h3>
                 </div>
                 <button onclick="closeQrModal()" class="text-slate-400 hover:text-white p-1.5">
                     <i class="fa-solid fa-xmark"></i>
@@ -1053,15 +1207,15 @@
                 <div id="qr-code-container" class="p-3 rounded-xl bg-white shadow-xl flex items-center justify-center min-w-[236px] min-h-[236px]">
                     <canvas id="qr-canvas" width="220" height="220" class="rounded"></canvas>
                 </div>
-                <p id="qr-modal-subtitle" class="text-xs text-slate-300">Rett kameraet på den andre enheten (<strong class="text-amber-300">Skann QR</strong> i Steg 2) mot denne koden.</p>
+                <p id="qr-modal-subtitle" class="text-xs text-slate-300">Point the camera of the other device (<strong class="text-amber-300">Scan QR</strong> in Step 2) at this code.</p>
                 <div id="qr-summary-text" class="w-full p-2 rounded bg-slate-950 border border-slate-800 font-mono text-[10px] text-cyan-300 break-all max-h-20 overflow-y-auto selectable"></div>
             </div>
             <div class="px-5 py-3 bg-slate-900 border-t border-slate-800 flex justify-between gap-2">
                 <button onclick="openQrScannerModal(); closeQrModal();" class="min-h-[42px] px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold flex items-center gap-1.5">
-                    <i class="fa-solid fa-camera"></i> Åpne QR-Skanner
+                    <i class="fa-solid fa-camera"></i> Open QR Scanner
                 </button>
-                <button onclick="copyTextFrom('local-sdp-box', 'SDP-streng kopiert!')" class="flex-1 min-h-[42px] px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold">Kopier Tekst</button>
-                <button onclick="closeQrModal()" class="min-h-[42px] px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium">Lukk</button>
+                <button onclick="copyTextFrom('local-sdp-box', 'SDP string copied!')" class="flex-1 min-h-[42px] px-3 py-1.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold">Copy Text</button>
+                <button onclick="closeQrModal()" class="min-h-[42px] px-3 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium">Close</button>
             </div>
         </div>
     </div>
@@ -1073,8 +1227,8 @@
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-camera-viewfinder text-amber-400 text-base"></i>
                     <div>
-                        <h3 class="font-bold text-white text-sm">Optisk QR-Skanner (Kamera / Bilde)</h3>
-                        <p class="text-[10px] text-slate-400">Leser QR-kode fra OneGiver (Offer) eller OneReceiver (Answer)</p>
+                        <h3 class="font-bold text-white text-sm">Optical QR Scanner (Camera / Image)</h3>
+                        <p class="text-[10px] text-slate-400">Reads a QR code from OneGiver (Offer) or OneReceiver (Answer)</p>
                     </div>
                 </div>
                 <button onclick="closeQrScannerModal()" class="text-slate-400 hover:text-white p-1.5">
@@ -1095,29 +1249,29 @@
 
                     <div id="qr-camera-placeholder" class="absolute inset-0 flex flex-col items-center justify-center p-4 text-center bg-slate-950/90 text-xs text-slate-400">
                         <i class="fa-solid fa-spinner fa-spin text-amber-400 text-2xl mb-2"></i>
-                        <span id="qr-camera-status">Starter kamera for QR-avlesning...</span>
+                        <span id="qr-camera-status">Starting camera for QR scanning...</span>
                     </div>
                 </div>
 
                 <!-- Camera Controls & Fallback Image File Picker -->
                 <div class="w-full flex flex-wrap items-center justify-between gap-2">
                     <button onclick="switchScannerCamera()" class="flex-1 min-h-[42px] px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-200 text-xs font-medium flex items-center justify-center gap-1.5">
-                        <i class="fa-solid fa-camera-rotate text-cyan-400"></i> Bytt Kamera
+                        <i class="fa-solid fa-camera-rotate text-cyan-400"></i> Switch Camera
                     </button>
                     <label class="flex-1 min-h-[42px] px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-amber-500/40 text-amber-300 text-xs font-semibold flex items-center justify-center gap-1.5 cursor-pointer">
-                        <i class="fa-solid fa-image"></i> Les fra Bilde
+                        <i class="fa-solid fa-image"></i> Read from Image
                         <input type="file" accept="image/*" capture="environment" class="hidden" onchange="scanQrFromImageFile(event)">
                     </label>
                 </div>
 
                 <div class="w-full p-2.5 rounded-xl bg-slate-900/90 border border-slate-800 text-[11px] text-slate-300 leading-relaxed">
                     <i class="fa-solid fa-wand-magic-sparkles text-amber-400 mr-1"></i>
-                    <strong>Automatisk:</strong> Så snart QR-koden fra OneGiver oppdages, genererer OneReceiver sitt svar og åpner hull i brannmuren!
+                    <strong>Automatic:</strong> As soon as the QR code from OneGiver is detected, OneReceiver generates its answer and opens a hole in the firewall!
                 </div>
             </div>
 
             <div class="px-4 py-3 bg-slate-900 border-t border-slate-800 flex justify-end">
-                <button onclick="closeQrScannerModal()" class="min-h-[40px] px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">Avbryt</button>
+                <button onclick="closeQrScannerModal()" class="min-h-[40px] px-4 py-1.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-medium">Cancel</button>
             </div>
         </div>
     </div>
@@ -1242,7 +1396,7 @@
                 floatingHud.classList.add('hidden');
                 chatSec.classList.remove('hidden');
                 logSec.classList.remove('hidden');
-                rightTitle.textContent = 'Direkte P2P Chat & Filoverføring';
+                rightTitle.textContent = 'Direct P2P Chat & File Transfer';
             } else if (tab === 'log') {
                 rightPanel.classList.remove('sheet-closed');
                 rightPanel.classList.add('sheet-open');
@@ -1251,7 +1405,7 @@
                 floatingHud.classList.add('hidden');
                 chatSec.classList.add('hidden');
                 logSec.classList.remove('hidden');
-                rightTitle.textContent = 'Sanntids NAT & Pakke-Inspektør';
+                rightTitle.textContent = 'Real-time NAT & Packet Inspector';
             }
         }
 
@@ -1306,7 +1460,7 @@
         async function shareSdpNative(elementId) {
             const text = document.getElementById(elementId).value.trim();
             if (!text) {
-                showToast('Generer SDP-pakken først før du deler!', 'warn');
+                showToast('Generate the SDP packet before sharing!', 'warn');
                 return;
             }
             if (navigator.share) {
@@ -1315,13 +1469,13 @@
                         title: `P2P Offline SDP (${APP_STATE.role})`,
                         text: text
                     });
-                    showToast('Delt via enhetens delingsmeny!', 'success');
+                    showToast('Shared via the device share menu!', 'success');
                     return;
                 } catch (err) {
                     // Fallback to copy
                 }
             }
-            copyTextFrom(elementId, 'SDP-pakke kopiert til utklippstavlen!');
+            copyTextFrom(elementId, 'SDP packet copied to the clipboard!');
         }
 
         async function pasteIntoRemoteSdp() {
@@ -1331,13 +1485,13 @@
                     const clip = await navigator.clipboard.readText();
                     if (clip) {
                         target.value = clip.trim();
-                        showToast('Limt inn fra utklippstavlen!', 'success');
+                        showToast('Pasted from the clipboard!', 'success');
                         return;
                     }
                 }
             } catch (e) {}
             target.focus();
-            showToast('Hold fingeren i tekstfeltet og velg "Lim inn".', 'info');
+            showToast('Long-press the text field and choose "Paste".', 'info');
         }
 
         function downloadPythonScript() {
@@ -1352,7 +1506,7 @@
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
-            showToast('Lastet ned udp_hole_punch_bridge.py!', 'success');
+            showToast('Downloaded udp_hole_punch_bridge.py!', 'success');
         }
 
         function logPacketEvent(protocol, src, dst, status, details) {
@@ -1388,7 +1542,7 @@
             const el = document.getElementById(elementId);
             const text = el.value !== undefined ? el.value : el.innerText;
             if (!text || !text.trim()) {
-                showToast('Ingenting å kopiere ennå!', 'warn');
+                showToast('Nothing to copy yet!', 'warn');
                 return;
             }
             const tempArea = document.createElement('textarea');
@@ -1397,9 +1551,9 @@
             tempArea.select();
             try {
                 document.execCommand('copy');
-                showToast(toastMsg || 'Kopiert til utklippstavlen!', 'success');
+                showToast(toastMsg || 'Copied to the clipboard!', 'success');
             } catch (e) {
-                showToast('Kunne ikke kopiere automatisk. Marker teksten manuelt.', 'warn');
+                showToast('Could not copy automatically. Select the text manually.', 'warn');
             }
             document.body.removeChild(tempArea);
         }
@@ -1416,20 +1570,20 @@
             if (role === 'A') {
                 btnA.className = 'min-h-[48px] p-2.5 rounded-lg border border-cyan-500/60 bg-cyan-950/50 text-left transition-all';
                 btnB.className = 'min-h-[48px] p-2.5 rounded-lg border border-slate-700/80 bg-slate-900/60 text-left transition-all hover:border-slate-600';
-                step1Title.textContent = 'Steg 1 (OneGiver): Generer Tilkoblingspakke';
+                step1Title.textContent = 'Step 1 (OneGiver): Generate Connection Packet';
                 btnGenOffer.classList.remove('hidden');
-                btnProcessLabel.textContent = 'Aktiver Svar (Answer) & Slå Hull';
+                btnProcessLabel.textContent = 'Activate Answer & Punch Hole';
                 wanIpInput.value = APP_STATE.fwAWanIp;
             } else {
                 btnB.className = 'min-h-[48px] p-2.5 rounded-lg border border-emerald-500/60 bg-emerald-950/50 text-left transition-all';
                 btnA.className = 'min-h-[48px] p-2.5 rounded-lg border border-slate-700/80 bg-slate-900/60 text-left transition-all hover:border-slate-600';
-                step1Title.textContent = 'Steg 1 (OneReceiver): Ditt genererte SDP Answer';
+                step1Title.textContent = 'Step 1 (OneReceiver): Your generated SDP Answer';
                 btnGenOffer.classList.add('hidden');
-                btnProcessLabel.textContent = 'Les Offer, Lag Answer & Slå Hull';
+                btnProcessLabel.textContent = 'Read Offer, Create Answer & Punch Hole';
                 wanIpInput.value = APP_STATE.fwBWanIp;
             }
             updateOneChatHeaderRole();
-            showToast(`Rolle satt til ${getRoleName(role)}`, 'info');
+            showToast(`Role set to ${getRoleName(role)}`, 'info');
         }
 
         /**************************************************************************
@@ -1439,8 +1593,8 @@
             if (APP_STATE.rtcPeer) {
                 try { APP_STATE.rtcPeer.close(); } catch (e) {}
             }
-            // Zero external STUN or TURN servers! 100% offline/autonomous
-            const pc = new RTCPeerConnection({ iceServers: [] });
+            // By default: zero external STUN or TURN servers (100% offline/autonomous). Basic view can opt in to a public STUN server.
+            const pc = new RTCPeerConnection({ iceServers: APP_STATE.useStun ? [{ urls: 'stun:stun.l.google.com:19302' }] : [] });
             APP_STATE.rtcPeer = pc;
 
             pc.onicecandidate = () => {
@@ -1449,9 +1603,9 @@
 
             pc.oniceconnectionstatechange = () => {
                 const state = pc.iceConnectionState;
-                logPacketEvent('ICE', getRoleName(APP_STATE.role), getPeerRoleName(), state.toUpperCase(), `WebRTC ICE-tilstand endret til: ${state}`);
+                logPacketEvent('ICE', getRoleName(APP_STATE.role), getPeerRoleName(), state.toUpperCase(), `WebRTC ICE state changed to: ${state}`);
                 if (state === 'connected' || state === 'completed') {
-                    activateFullP2PTunnel('Ekte WebRTC DataChannel');
+                    activateFullP2PTunnel('Real WebRTC DataChannel');
                 }
             };
 
@@ -1479,7 +1633,7 @@
                     if (remoteImg) remoteImg.classList.add('hidden');
                     if (simCanvas) simCanvas.classList.add('hidden');
                     ONECHAT_STATE.hasRealRemoteTrack = true;
-                    showToast(`Mottar direkte WebRTC videostrøm fra ${getPeerRoleName()}!`, 'success');
+                    showToast(`Receiving direct WebRTC video stream from ${getPeerRoleName()}!`, 'success');
                 }
             };
 
@@ -1491,10 +1645,10 @@
             dc.binaryType = 'arraybuffer';
 
             dc.onopen = () => {
-                activateFullP2PTunnel('WebRTC DataChannel (Kryptert DTLS/SCTP)');
-                document.getElementById('chat-mode-indicator').textContent = 'Ekte WebRTC Aktiv';
+                activateFullP2PTunnel('WebRTC DataChannel (Encrypted DTLS/SCTP)');
+                document.getElementById('chat-mode-indicator').textContent = 'Real WebRTC Active';
                 document.getElementById('chat-mode-indicator').className = 'font-mono text-[10px] text-emerald-400 font-bold';
-                showToast('Direkte WebRTC P2P DataChannel er åpen uten STUN!', 'success');
+                showToast('Direct WebRTC P2P DataChannel is open without STUN!', 'success');
             };
 
             dc.onmessage = (event) => {
@@ -1502,7 +1656,7 @@
             };
 
             dc.onclose = () => {
-                showToast('WebRTC DataChannel ble lukket.', 'warn');
+                showToast('WebRTC DataChannel was closed.', 'warn');
             };
         }
 
@@ -1535,11 +1689,11 @@
             // Update candidate list UI
             const candidateLines = rawSdp.split('\r\n').filter(l => l.startsWith('a=candidate:'));
             const listEl = document.getElementById('ice-candidates-list');
-            document.getElementById('ice-count-badge').textContent = `${candidateLines.length} kandidater`;
+            document.getElementById('ice-count-badge').textContent = `${candidateLines.length} candidates`;
             listEl.innerHTML = candidateLines.map(line => {
                 const isInjected = line.includes('99999999');
                 return `<div class="px-1.5 py-0.5 rounded ${isInjected ? 'bg-emerald-950/70 text-emerald-300 border border-emerald-500/30' : 'bg-slate-900 text-cyan-300'} truncate">
-                    ${isInjected ? '[MANUELL WAN] ' : '[LOKAL NIC] '}${line.replace('a=candidate:', '')}
+                    ${isInjected ? '[MANUAL WAN] ' : '[LOCAL NIC] '}${line.replace('a=candidate:', '')}
                 </div>`;
             }).join('');
 
@@ -1596,7 +1750,7 @@
                 return 'P2PQR1:' + btoa(JSON.stringify(compactObj));
             }
 
-            // Fallback if user hasn't clicked "Lag SDP Offer" yet: generate a compact instant token
+            // Fallback if user hasn't clicked "Create SDP Offer" yet: generate a compact instant token
             return 'P2PQR1:' + btoa(JSON.stringify({
                 q: 1,
                 t: APP_STATE.role === 'A' ? 'o' : 'a',
@@ -1666,16 +1820,16 @@
                 // Trigger outbound visual punch on Firewall A
                 punchSingleFirewall('A', APP_STATE.fwAPort);
                 spawn3DPacket('A_TO_B', 'UDP/ICE', true);
-                showToast('SDP Offer fra OneGiver er generert! Vis QR-kode eller kopier til OneReceiver.', 'success');
+                showToast('SDP Offer from OneGiver generated! Show the QR code or copy it to OneReceiver.', 'success');
             } catch (err) {
-                showToast('Feil ved opprettelse av SDP Offer: ' + err.message, 'error');
+                showToast('Error creating SDP Offer: ' + err.message, 'error');
             }
         }
 
         async function processRemoteSDP(autoOpenAnswerQr = false) {
             let rawInput = document.getElementById('remote-sdp-box').value.trim();
             if (!rawInput) {
-                showToast('Ingen ekstern SDP limt inn — starter synkron 3D Hole Punching demonstrasjon!', 'info');
+                showToast('No remote SDP pasted — starting the synchronized 3D Hole Punching demonstration!', 'info');
                 runSimulationScenario('punch');
                 return;
             }
@@ -1688,7 +1842,7 @@
                 }
 
                 const decoded = JSON.parse(decodeURIComponent(escape(atob(rawInput))));
-                if (!decoded.type) throw new Error('Ugyldig SDP-format');
+                if (!decoded.type) throw new Error('Invalid SDP format');
 
                 if (decoded.type === 'offer') {
                     // Automatically act as OneReceiver (Responder)
@@ -1713,11 +1867,11 @@
                     }
 
                     runSimulationScenario('punch');
-                    showToast('QR/SDP Offer fra OneGiver lest! OneReceiver-svar er nå generert.', 'success');
+                    showToast('QR/SDP Offer from OneGiver read! OneReceiver answer has now been generated.', 'success');
 
                     if (autoOpenAnswerQr) {
                         setTimeout(() => {
-                            showQrModal('local-sdp-box', 'OneReceiver Svar-QR (Skann fra OneGiver)');
+                            showQrModal('local-sdp-box', 'OneReceiver Answer QR (Scan from OneGiver)');
                         }, 350);
                     }
                 } else if (decoded.type === 'answer') {
@@ -1729,11 +1883,11 @@
                         await APP_STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: decoded.sdp }));
                     }
                     runSimulationScenario('punch');
-                    activateFullP2PTunnel('Optisk QR-Handshake Fullført');
-                    showToast('OneReceivers SDP Answer aktivert — hull slått i begge brannmurer!', 'success');
+                    activateFullP2PTunnel('Optical QR Handshake Completed');
+                    showToast('The OneReceiver SDP Answer was activated — hole punched in both firewalls!', 'success');
                 }
             } catch (err) {
-                showToast('Kunne ikke lese SDP/QR-pakke: ' + err.message, 'error');
+                showToast('Could not read SDP/QR packet: ' + err.message, 'error');
             }
         }
 
@@ -1746,12 +1900,12 @@
 
             const script = `#!/usr/bin/env python3
 """
-AUTONOM UDP HOLE PUNCHING + WEBSOCKET BRO (100% UTEN INTERNETT-TJENESTER)
-Kjør dette skriptet på både PC A og PC B.
-- Låser lokal UDP-port ${udpPort} (Port Preservation gjennom NAT)
-- Sender synkrone UDP-pakker til motpartens brannmur (${peerIp}:${udpPort})
-- Ved Symmetrisk NAT: Scanner nærliggende porter (+1 til +16) automatisk
-- Eksponerer lokal WebSocket (ws://127.0.0.1:8765) direkte til 3D WebGL-appen
+AUTONOMOUS UDP HOLE PUNCHING + WEBSOCKET BRIDGE (100% WITHOUT INTERNET SERVICES)
+Run this script on both PC A and PC B.
+- Locks local UDP port ${udpPort} (Port Preservation through NAT)
+- Sends synchronized UDP packets to the peer's firewall (${peerIp}:${udpPort})
+- With Symmetric NAT: Automatically scans nearby ports (+1 to +16)
+- Exposes a local WebSocket (ws://127.0.0.1:8765) directly to the 3D WebGL app
 """
 import asyncio
 import json
@@ -1777,11 +1931,11 @@ def udp_hole_punch_worker():
     seq = 0
     while True:
         seq += 1
-        # 1. Primær synkron hullslåingspakke / Keep-Alive
+        # 1. Primary synchronized hole punching packet / Keep-Alive
         pkt = json.dumps({"type": "PUNCH_KEEPALIVE", "seq": seq, "ts": time.time()}).encode()
         try:
             udp_sock.sendto(pkt, connected_peer_addr)
-            # 2. Port-prediksjon (hvis motpart har Symmetrisk NAT som øker portnummer)
+            # 2. Port prediction (if the peer has a Symmetric NAT that increments the port number)
             for offset in range(1, 6):
                 udp_sock.sendto(pkt, (PEER_WAN_IP, PEER_BASE_PORT + offset))
         except Exception as e:
@@ -1794,9 +1948,9 @@ async def udp_reader_loop():
     while True:
         try:
             data, addr = await loop.sock_recvfrom(udp_sock, 65535)
-            connected_peer_addr = addr  # Lås til faktisk ekstern NAT-port!
+            connected_peer_addr = addr  # Lock to the actual external NAT port!
             msg = data.decode("utf-8", errors="replace")
-            print(f"[UDP HULL ÅPENT] Pakke fra {addr[0]}:{addr[1]} -> {msg[:60]}")
+            print(f"[UDP HOLE OPEN] Packet from {addr[0]}:{addr[1]} -> {msg[:60]}")
             for ws in list(ws_clients):
                 await ws.send(json.dumps({"from": f"{addr[0]}:{addr[1]}", "payload": msg}))
         except BlockingIOError:
@@ -1806,7 +1960,7 @@ async def udp_reader_loop():
 
 async def ws_handler(websocket):
     ws_clients.add(websocket)
-    print("[WEBGL UI] 3D-Webapp koblet til lokal UDP-bro!")
+    print("[WEBGL UI] 3D web app connected to the local UDP bridge!")
     try:
         async for message in websocket:
             udp_sock.sendto(message.encode("utf-8"), connected_peer_addr)
@@ -1815,14 +1969,14 @@ async def ws_handler(websocket):
 
 async def main():
     threading.Thread(target=udp_hole_punch_worker, daemon=True).start()
-    print(f"[*] Slår hull fra UDP 0.0.0.0:{LOCAL_UDP_PORT} -> {PEER_WAN_IP}:{PEER_BASE_PORT}")
+    print(f"[*] Punching hole from UDP 0.0.0.0:{LOCAL_UDP_PORT} -> {PEER_WAN_IP}:{PEER_BASE_PORT}")
     try:
         import websockets
         async with websockets.serve(ws_handler, "127.0.0.1", WS_PORT):
-            print(f"[*] Lokal WebSocket-bro lytter på ws://127.0.0.1:{WS_PORT}")
+            print(f"[*] Local WebSocket bridge listening on ws://127.0.0.1:{WS_PORT}")
             await udp_reader_loop()
     except ImportError:
-        print("[!] 'websockets' ikke installert. Kjører ren UDP Hole Punching i terminalen:")
+        print("[!] 'websockets' is not installed. Running pure UDP Hole Punching in the terminal:")
         await udp_reader_loop()
 
 if __name__ == "__main__":
@@ -1842,7 +1996,7 @@ if __name__ == "__main__":
 
         function connectLocalPythonBridge() {
             const statusEl = document.getElementById('ws-bridge-status');
-            statusEl.textContent = 'Kobler til...';
+            statusEl.textContent = 'Connecting...';
             statusEl.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-amber-950 text-amber-300';
 
             try {
@@ -1851,9 +2005,9 @@ if __name__ == "__main__":
                 APP_STATE.wsBridge = ws;
 
                 ws.onopen = () => {
-                    statusEl.textContent = 'Tilkoblet (UDP:51820)';
+                    statusEl.textContent = 'Connected (UDP:51820)';
                     statusEl.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-500/40';
-                    showToast('Knyttet til lokal Python UDP-bro på 127.0.0.1:8765!', 'success');
+                    showToast('Linked to the local Python UDP bridge on 127.0.0.1:8765!', 'success');
                     runSimulationScenario('punch');
                 };
 
@@ -1868,12 +2022,12 @@ if __name__ == "__main__":
                 };
 
                 ws.onerror = () => {
-                    statusEl.textContent = 'Ikke startet lokalt';
+                    statusEl.textContent = 'Not started locally';
                     statusEl.className = 'text-[10px] font-mono px-2 py-0.5 rounded bg-rose-950 text-rose-300';
-                    showToast('Fant ikke kjørende Python-bro på port 8765. Klikk "Hent Skript" eller bruk 3D-simulatoren.', 'warn');
+                    showToast('No running Python bridge found on port 8765. Click "Show / Download" or use the 3D simulator.', 'warn');
                 };
             } catch (err) {
-                showToast('WebSocket-feil: ' + err.message, 'error');
+                showToast('WebSocket error: ' + err.message, 'error');
             }
         }
 
@@ -1895,8 +2049,8 @@ if __name__ == "__main__":
             const compactQrString = buildCompactQrPayload();
             document.getElementById('qr-summary-text').textContent = compactQrString;
             document.getElementById('qr-modal-title').textContent = customTitle || (APP_STATE.role === 'A'
-                ? 'OneGiver QR-Kode — Skann med OneReceiver'
-                : 'OneReceiver Svar-QR — Skann med OneGiver');
+                ? 'OneGiver QR Code — Scan with OneReceiver'
+                : 'OneReceiver Answer QR — Scan with OneGiver');
             document.getElementById('qr-modal').classList.remove('hidden');
 
             const container = document.getElementById('qr-code-container');
@@ -1912,7 +2066,7 @@ if __name__ == "__main__":
                     correctLevel: QRCode.CorrectLevel.L
                 });
             } else {
-                container.innerHTML = '<div class="text-xs text-rose-500 p-4">Kunne ikke laste QR-bibliotek. Bruk Kopier Tekst.</div>';
+                container.innerHTML = '<div class="text-xs text-rose-500 p-4">Could not load the QR library. Use Copy Text.</div>';
             }
         }
 
@@ -1942,10 +2096,10 @@ if __name__ == "__main__":
             const statusText = document.getElementById('qr-camera-status');
 
             placeholder.classList.remove('hidden');
-            statusText.textContent = 'Starter kamera for QR-avlesning...';
+            statusText.textContent = 'Starting camera for QR scanning...';
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                statusText.textContent = 'Kamera ikke tilgjengelig i denne visningen. Bruk "Les fra Bilde"-knappen under!';
+                statusText.textContent = 'Camera not available in this view. Use the "Read from Image" button below!';
                 return;
             }
 
@@ -1959,7 +2113,7 @@ if __name__ == "__main__":
                 placeholder.classList.add('hidden');
                 qrScannerAnimFrame = requestAnimationFrame(tickQrVideoScan);
             } catch (err) {
-                statusText.textContent = 'Kameratilgang avslått eller utilgjengelig. Trykk "Les fra Bilde" for å ta bilde av QR-koden!';
+                statusText.textContent = 'Camera access denied or unavailable. Press "Read from Image" to take a picture of the QR code!';
             }
         }
 
@@ -2019,7 +2173,7 @@ if __name__ == "__main__":
                         if (code && code.data) {
                             handleScannedQrPayload(code.data.trim());
                         } else {
-                            showToast('Fant ingen gyldig QR-kode i bildet. Prøv litt nærmere skjermen.', 'warn');
+                            showToast('No valid QR code found in the image. Try getting a little closer to the screen.', 'warn');
                         }
                     }
                 };
@@ -2031,8 +2185,8 @@ if __name__ == "__main__":
         function handleScannedQrPayload(scannedData) {
             closeQrScannerModal();
             document.getElementById('remote-sdp-box').value = scannedData;
-            logPacketEvent('QR-OPTISK', 'Kamera-Skanner', `PC_${APP_STATE.role}`, 'OK', `Leste optisk QR-pakke (${scannedData.length} tegn)`);
-            showToast('QR-kode fra motpart lest! Prosesserer og slår hull i brannmur...', 'success');
+            logPacketEvent('QR-OPTICAL', 'Camera Scanner', `PC_${APP_STATE.role}`, 'OK', `Read optical QR packet (${scannedData.length} characters)`);
+            showToast('QR code from peer read! Processing and punching a firewall hole...', 'success');
             // Process the scanned Offer/Answer and automatically display Responder's Answer QR if an Offer was scanned
             processRemoteSDP(true);
         }
@@ -2317,26 +2471,26 @@ if __name__ == "__main__":
                     id: 'lbl-fwa',
                     pos: new THREE.Vector3(-8, 7.3, 0),
                     html: `<div class="px-2.5 py-1 rounded-lg hud-glass border-rose-500/40 text-center">
-                        <div class="text-[11px] font-bold text-white">Brannmur / NAT A</div>
+                        <div class="text-[11px] font-bold text-white">Firewall / NAT A</div>
                         <div id="lbl-fwa-ip" class="text-[9px] font-mono text-cyan-300">WAN: 203.0.113.10:51820</div>
-                        <div id="lbl-fwa-state" class="text-[9px] font-mono text-rose-400 font-bold">INKOMMENDE: BLOKKERT</div>
+                        <div id="lbl-fwa-state" class="text-[9px] font-mono text-rose-400 font-bold">INBOUND: BLOCKED</div>
                     </div>`
                 },
                 {
                     id: 'lbl-wan',
                     pos: new THREE.Vector3(0, 3.8, 0),
                     html: `<div class="px-2 py-0.5 rounded bg-slate-900/90 border border-slate-700 text-center">
-                        <div class="text-[10px] font-mono text-slate-300">Rutet WAN / Intranett</div>
-                        <div class="text-[9px] font-mono text-emerald-400">Ingen STUN / Skyserver</div>
+                        <div class="text-[10px] font-mono text-slate-300">Routed WAN / Intranet</div>
+                        <div class="text-[9px] font-mono text-emerald-400">No STUN / Cloud Server</div>
                     </div>`
                 },
                 {
                     id: 'lbl-fwb',
                     pos: new THREE.Vector3(8, 7.3, 0),
                     html: `<div class="px-2.5 py-1 rounded-lg hud-glass border-rose-500/40 text-center">
-                        <div class="text-[11px] font-bold text-white">Brannmur / NAT B</div>
+                        <div class="text-[11px] font-bold text-white">Firewall / NAT B</div>
                         <div id="lbl-fwb-ip" class="text-[9px] font-mono text-emerald-300">WAN: 198.51.100.25:51820</div>
-                        <div id="lbl-fwb-state" class="text-[9px] font-mono text-rose-400 font-bold">INKOMMENDE: BLOKKERT</div>
+                        <div id="lbl-fwb-state" class="text-[9px] font-mono text-rose-400 font-bold">INBOUND: BLOCKED</div>
                     </div>`
                 },
                 {
@@ -2383,27 +2537,27 @@ if __name__ == "__main__":
             if (side === 'A') {
                 APP_STATE.fwAOpen = true;
                 APP_STATE.fwAPort = port || APP_STATE.fwAPort;
-                document.getElementById('fw-a-badge').textContent = 'HULL ÅPENT';
+                document.getElementById('fw-a-badge').textContent = 'HOLE OPEN';
                 document.getElementById('fw-a-badge').className = 'text-cyan-400 font-bold';
-                document.getElementById('fw-a-rule').textContent = `TILLAT ${protocol} ${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort} <-> LAN:${APP_STATE.fwAPort}`;
+                document.getElementById('fw-a-rule').textContent = `ALLOW ${protocol} ${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort} <-> LAN:${APP_STATE.fwAPort}`;
                 document.getElementById('fw-a-rule').className = 'text-cyan-300 truncate';
 
                 const lblState = document.getElementById('lbl-fwa-state');
                 if (lblState) {
-                    lblState.textContent = `HULL ÅPENT (PORT ${APP_STATE.fwAPort})`;
+                    lblState.textContent = `HOLE OPEN (PORT ${APP_STATE.fwAPort})`;
                     lblState.className = 'text-[9px] font-mono text-cyan-300 font-bold';
                 }
             } else {
                 APP_STATE.fwBOpen = true;
                 APP_STATE.fwBPort = port || APP_STATE.fwBPort;
-                document.getElementById('fw-b-badge').textContent = 'HULL ÅPENT';
+                document.getElementById('fw-b-badge').textContent = 'HOLE OPEN';
                 document.getElementById('fw-b-badge').className = 'text-emerald-400 font-bold';
-                document.getElementById('fw-b-rule').textContent = `TILLAT ${protocol} ${APP_STATE.fwAWanIp}:${APP_STATE.fwAPort} <-> LAN:${APP_STATE.fwBPort}`;
+                document.getElementById('fw-b-rule').textContent = `ALLOW ${protocol} ${APP_STATE.fwAWanIp}:${APP_STATE.fwAPort} <-> LAN:${APP_STATE.fwBPort}`;
                 document.getElementById('fw-b-rule').className = 'text-emerald-300 truncate';
 
                 const lblState = document.getElementById('lbl-fwb-state');
                 if (lblState) {
-                    lblState.textContent = `HULL ÅPENT (PORT ${APP_STATE.fwBPort})`;
+                    lblState.textContent = `HOLE OPEN (PORT ${APP_STATE.fwBPort})`;
                     lblState.className = 'text-[9px] font-mono text-emerald-300 font-bold';
                 }
             }
@@ -2425,11 +2579,11 @@ if __name__ == "__main__":
             const text = document.getElementById('conn-status-text');
             badge.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 shadow-lg shadow-emerald-950/50';
             dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
-            text.textContent = window.innerWidth < 640 ? 'P2P AKTIV' : 'P2P TUNNEL AKTIV';
+            text.textContent = window.innerWidth < 640 ? 'P2P ACTIVE' : 'P2P TUNNEL ACTIVE';
 
             const rttEl = document.getElementById('ping-rtt-value');
             if (rttEl) rttEl.textContent = `${APP_STATE.rttMs} ms`;
-            logPacketEvent('TUNNEL', `OneGiver:${APP_STATE.fwAPort}`, `OneReceiver:${APP_STATE.fwBPort}`, 'OK', `Direkte toveis P2P-forbindelse etablert (${reasonText})`);
+            logPacketEvent('TUNNEL', `OneGiver:${APP_STATE.fwAPort}`, `OneReceiver:${APP_STATE.fwBPort}`, 'OK', `Direct two-way P2P connection established (${reasonText})`);
             updateFirewallVisualState();
             syncOneChatLockUI();
         }
@@ -2440,24 +2594,24 @@ if __name__ == "__main__":
             APP_STATE.isTunnelActive = false;
             APP_STATE.natTtlRemaining = 0;
 
-            document.getElementById('fw-a-badge').textContent = 'STENGT';
+            document.getElementById('fw-a-badge').textContent = 'CLOSED';
             document.getElementById('fw-a-badge').className = 'text-rose-400 font-bold';
-            document.getElementById('fw-a-rule').textContent = 'Ingen aktiv tilstand — dropper inngående';
+            document.getElementById('fw-a-rule').textContent = 'No active state — dropping inbound';
             document.getElementById('fw-a-rule').className = 'text-slate-500 truncate';
 
-            document.getElementById('fw-b-badge').textContent = 'STENGT';
+            document.getElementById('fw-b-badge').textContent = 'CLOSED';
             document.getElementById('fw-b-badge').className = 'text-rose-400 font-bold';
-            document.getElementById('fw-b-rule').textContent = 'Ingen aktiv tilstand — dropper inngående';
+            document.getElementById('fw-b-rule').textContent = 'No active state — dropping inbound';
             document.getElementById('fw-b-rule').className = 'text-slate-500 truncate';
 
             const lblA = document.getElementById('lbl-fwa-state');
             const lblB = document.getElementById('lbl-fwb-state');
             if (lblA) {
-                lblA.textContent = 'INKOMMENDE: BLOKKERT';
+                lblA.textContent = 'INBOUND: BLOCKED';
                 lblA.className = 'text-[9px] font-mono text-rose-400 font-bold';
             }
             if (lblB) {
-                lblB.textContent = 'INKOMMENDE: BLOKKERT';
+                lblB.textContent = 'INBOUND: BLOCKED';
                 lblB.className = 'text-[9px] font-mono text-rose-400 font-bold';
             }
 
@@ -2466,7 +2620,7 @@ if __name__ == "__main__":
             const text = document.getElementById('conn-status-text');
             badge.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300';
             dot.className = 'w-2 h-2 rounded-full bg-rose-500 animate-ping';
-            text.textContent = window.innerWidth < 640 ? 'LÅST' : 'BRANNMUR LÅST';
+            text.textContent = window.innerWidth < 640 ? 'LOCKED' : 'FIREWALL LOCKED';
 
             updateFirewallVisualState();
             syncOneChatLockUI();
@@ -2552,7 +2706,7 @@ if __name__ == "__main__":
          **************************************************************************/
         function onNatTypeChange() {
             APP_STATE.natType = document.getElementById('sim-nat-type').value;
-            showToast(`NAT-arkitektur i 3D-lab satt til: ${APP_STATE.natType.toUpperCase()}`, 'info');
+            showToast(`NAT architecture in the 3D lab set to: ${APP_STATE.natType.toUpperCase()}`, 'info');
         }
 
         function runSimulationScenario(scenario) {
@@ -2561,17 +2715,17 @@ if __name__ == "__main__":
                 resetFirewallStates();
                 punchSingleFirewall('A', 51820, 'UDP');
                 spawn3DPacket('A_TO_B', 'UDP', true, 0);
-                logPacketEvent('UDP', '192.168.1.10:51820', `${APP_STATE.fwBWanIp}:51820`, 'PUNCH', 'PC A sender pakke ut gjennom Brannmur A (Brannmur B har ikke åpnet hull ennå)');
-                showToast('Scenario 1: PC A prøver å kontakte PC B uten at PC B har sendt utgående pakke først.', 'warn');
+                logPacketEvent('UDP', '192.168.1.10:51820', `${APP_STATE.fwBWanIp}:51820`, 'PUNCH', 'PC A sends a packet out through Firewall A (Firewall B has not opened a hole yet)');
+                showToast('Scenario 1: PC A tries to contact PC B without PC B having sent an outbound packet first.', 'warn');
             } else if (scenario === 'punch') {
                 // 2. Simultaneous UDP Open (Hole Punching!)
                 resetFirewallStates();
                 const badge = document.getElementById('conn-status-badge');
                 const text = document.getElementById('conn-status-text');
                 badge.className = 'flex items-center gap-2 px-3 py-1.5 rounded-lg bg-amber-950/80 border border-amber-400/50 text-amber-300';
-                text.textContent = 'SLÅR HULL (SYNKRONT)';
+                text.textContent = 'PUNCHING HOLE (SYNCHRONIZED)';
 
-                logPacketEvent('UDP', 'PC A & PC B', 'Begge Brannmurer', 'PUNCH', 'Synkron utgående pakke (Simultaneous Open) fra port 51820 på begge sider!');
+                logPacketEvent('UDP', 'PC A & PC B', 'Both Firewalls', 'PUNCH', 'Synchronized outbound packet (Simultaneous Open) from port 51820 on both sides!');
                 spawn3DPacket('A_TO_B', 'UDP', true, 0.25, 51820);
                 spawn3DPacket('B_TO_A', 'UDP', true, -0.25, 51820);
 
@@ -2580,12 +2734,12 @@ if __name__ == "__main__":
                     spawn3DPacket('A_TO_B', 'UDP', true, 0.2, 51820);
                     spawn3DPacket('B_TO_A', 'UDP', true, -0.2, 51820);
                 }, 900);
-                showToast('Scenario 2: Synkron UDP Hole Punching! Begge brannmurer åpner tilstandstabellen samtidig.', 'info');
+                showToast('Scenario 2: Synchronized UDP Hole Punching! Both firewalls open their state tables at the same time.', 'info');
             } else if (scenario === 'symmetric') {
                 // 3. Symmetric NAT Port Spraying / Prediction
                 resetFirewallStates();
-                showToast('Scenario 3: Symmetrisk NAT! Ruter B tildeler ny port (51823). PC A sprayer port 51820–51824 for å treffe hullet.', 'info');
-                logPacketEvent('UDP-SPRAY', 'PC A', `${APP_STATE.fwBWanIp}:51820..51824`, 'PUNCH', 'Port-prediksjon: Sender pakkesverm over port-sekvens for å treffe Symmetrisk NAT');
+                showToast('Scenario 3: Symmetric NAT! Router B assigns a new port (51823). PC A sprays ports 51820–51824 to hit the hole.', 'info');
+                logPacketEvent('UDP-SPRAY', 'PC A', `${APP_STATE.fwBWanIp}:51820..51824`, 'PUNCH', 'Port prediction: Sends a packet swarm over a port sequence to hit the Symmetric NAT');
 
                 // PC B opens hole on dynamic port 51823
                 setTimeout(() => {
@@ -2604,8 +2758,8 @@ if __name__ == "__main__":
             } else if (scenario === 'icmp') {
                 // 4. ICMP Echo Request / Reply Hole Punching (ID 0x1337)
                 resetFirewallStates();
-                showToast('Scenario 4: Streng Brannmur (UDP blokkert) — Slår hull med ICMP Echo Request (Ping ID 0x1337)!', 'info');
-                logPacketEvent('ICMP', 'PC A & PC B', 'Echo ID 0x1337', 'PUNCH', 'Utnytter brannmurens ICMP-tilstandstabell ved å sende synkrone Ping-pakker med likt ID-felt');
+                showToast('Scenario 4: Strict Firewall (UDP blocked) — Punching a hole with ICMP Echo Request (Ping ID 0x1337)!', 'info');
+                logPacketEvent('ICMP', 'PC A & PC B', 'Echo ID 0x1337', 'PUNCH', 'Exploits the ICMP state table of the firewall by sending synchronized Ping packets with the same ID field');
                 spawn3DPacket('A_TO_B', 'ICMP', true, 0.25, 1337);
                 spawn3DPacket('B_TO_A', 'ICMP', true, -0.25, 1337);
             }
@@ -2623,12 +2777,12 @@ if __name__ == "__main__":
             APP_STATE.natTtlRemaining = APP_STATE.natTtlMax;
             spawn3DPacket('A_TO_B', 'UDP', true, 0.15);
             spawn3DPacket('B_TO_A', 'UDP', true, -0.15);
-            logPacketEvent('KEEP-ALIVE', `LAN:${APP_STATE.fwAPort}`, `${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort}`, 'OK', `NAT-tilstandstabell fornyet til ${APP_STATE.natTtlMax}s TTL`);
+            logPacketEvent('KEEP-ALIVE', `LAN:${APP_STATE.fwAPort}`, `${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort}`, 'OK', `NAT state table renewed to ${APP_STATE.natTtlMax}s TTL`);
         }
 
         function sendPingBurst() {
             if (!APP_STATE.isTunnelActive) {
-                showToast('Slår hull i brannmurene først for å måle direkte P2P-RTT...', 'info');
+                showToast('Punching holes in the firewalls first to measure direct P2P RTT...', 'info');
                 runSimulationScenario('punch');
                 return;
             }
@@ -2639,7 +2793,7 @@ if __name__ == "__main__":
                 setTimeout(() => {
                     APP_STATE.rttMs = Math.floor(8 + Math.random() * 11);
                     document.getElementById('ping-rtt-value').textContent = `${APP_STATE.rttMs} ms`;
-                    showToast(`Direkte P2P-Ping målt til ${APP_STATE.rttMs} ms (0 mellomservere)`, 'success');
+                    showToast(`Direct P2P ping measured at ${APP_STATE.rttMs} ms (0 intermediate servers)`, 'success');
                 }, 260);
             }
             spawn3DPacket('A_TO_B', 'UDP', true, 0.2);
@@ -2674,10 +2828,10 @@ if __name__ == "__main__":
 
             // Ensure tunnel is open in 3D when user sends message
             if (!APP_STATE.isTunnelActive) {
-                activateFullP2PTunnel('Direktemelding utløste synkron hullslåing');
+                activateFullP2PTunnel('Direct message triggered synchronized hole punching');
             }
 
-            const myLabel = `${getRoleName(APP_STATE.role)} (Deg)`;
+            const myLabel = `${getRoleName(APP_STATE.role)} (You)`;
             appendChatMessage(myLabel, text, true);
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0);
             APP_STATE.natTtlRemaining = APP_STATE.natTtlMax;
@@ -2686,7 +2840,7 @@ if __name__ == "__main__":
 
             if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
                 APP_STATE.dataChannel.send(packetObj);
-                logPacketEvent('SCTP/UDP', getRoleName(APP_STATE.role), getPeerRoleName(), 'TUNNEL', `Kryptert melding (${text.length} bytes) sendt direkte`);
+                logPacketEvent('SCTP/UDP', getRoleName(APP_STATE.role), getPeerRoleName(), 'TUNNEL', `Encrypted message (${text.length} bytes) sent directly`);
             } else if (APP_STATE.wsBridge && APP_STATE.wsBridge.readyState === WebSocket.OPEN) {
                 APP_STATE.wsBridge.send(packetObj);
             } else {
@@ -2695,7 +2849,7 @@ if __name__ == "__main__":
                 setTimeout(() => {
                     const peerRole = APP_STATE.role === 'A' ? 'B' : 'A';
                     spawn3DPacket(peerRole === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, -0.2);
-                    appendChatMessage(`${getRoleName(peerRole)} (Direkte P2P ACK)`, `Mottok "${text}" direkte gjennom brannmurhullet på port ${APP_STATE.fwBPort}!`, false);
+                    appendChatMessage(`${getRoleName(peerRole)} (Direct P2P ACK)`, `Received "${text}" directly through the firewall hole on port ${APP_STATE.fwBPort}!`, false);
                 }, 650);
             }
         }
@@ -2735,7 +2889,7 @@ if __name__ == "__main__":
                         incomingFileMeta = parsed;
                         incomingFileChunks = [];
                         incomingBytesReceived = 0;
-                        showToast(`Mottar fil direkte: ${parsed.name} (${Math.round(parsed.size / 1024)} KB)`, 'info');
+                        showToast(`Receiving file directly: ${parsed.name} (${Math.round(parsed.size / 1024)} KB)`, 'info');
                     } else if (parsed.type === 'FILE_END' && incomingFileMeta) {
                         const blob = new Blob(incomingFileChunks, { type: incomingFileMeta.mime || 'application/octet-stream' });
                         offerReceivedFileDownload(incomingFileMeta.name, blob);
@@ -2749,7 +2903,7 @@ if __name__ == "__main__":
                 incomingBytesReceived += data.byteLength;
                 const pct = Math.min(100, Math.round((incomingBytesReceived / incomingFileMeta.size) * 100));
                 document.getElementById('file-progress-wrap').classList.remove('hidden');
-                document.getElementById('file-name-label').textContent = `Mottar: ${incomingFileMeta.name}`;
+                document.getElementById('file-name-label').textContent = `Receiving: ${incomingFileMeta.name}`;
                 document.getElementById('file-pct-label').textContent = `${pct}%`;
                 document.getElementById('file-progress-bar').style.width = `${pct}%`;
             }
@@ -2814,15 +2968,15 @@ if __name__ == "__main__":
                     localVid.style.transform = ONECHAT_STATE.mirrorLocal ? 'scaleX(-1)' : 'scaleX(1)';
                 }
             }
-            showToast('OneChat-innstillinger oppdatert', 'info');
+            showToast('OneChat settings updated', 'info');
         }
 
         function clearOneChatFeed() {
             const feed = document.getElementById('onechat-feed');
             if (feed) {
-                feed.innerHTML = `<div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center text-[11px] text-slate-400">OneChat-loggen ble tømt.</div>`;
+                feed.innerHTML = `<div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center text-[11px] text-slate-400">The OneChat log was cleared.</div>`;
             }
-            showToast('OneChat-historikk tømt', 'info');
+            showToast('OneChat history cleared', 'info');
         }
 
         // Apply layout for which video is small PiP in the corner and which is fullscreen
@@ -2860,12 +3014,12 @@ if __name__ == "__main__":
                 // Standard during video call: Own camera is small PiP in bottom-right, Remote peer is large!
                 remoteContainer.className = fullClasses;
                 localContainer.className = pipClasses;
-                if (swapBtnText) swapBtnText.textContent = 'Vis meg stort';
+                if (swapBtnText) swapBtnText.textContent = 'Show me large';
             } else {
                 // Swapped: Own camera is large fullscreen, Remote peer is small PiP in bottom-right!
                 localContainer.className = fullClasses;
                 remoteContainer.className = pipClasses;
-                if (swapBtnText) swapBtnText.textContent = `Vis ${getPeerRoleName()} stort`;
+                if (swapBtnText) swapBtnText.textContent = `Show ${getPeerRoleName()} large`;
             }
         }
 
@@ -2875,15 +3029,15 @@ if __name__ == "__main__":
                 ONECHAT_STATE.inCall = true;
                 ONECHAT_STATE.localIsSmallPip = true;
                 applyOneChatVideoPipLayout();
-                showToast(`Viser ${getPeerRoleName()} i stort vindu og ditt kamera i lite vindu`, 'info');
+                showToast(`Showing ${getPeerRoleName()} in the large window and your camera in the small window`, 'info');
                 return;
             }
             ONECHAT_STATE.localIsSmallPip = !ONECHAT_STATE.localIsSmallPip;
             applyOneChatVideoPipLayout();
             showToast(
                 ONECHAT_STATE.localIsSmallPip
-                    ? `${getPeerRoleName()} vises nå stort, og ditt kamera er lite`
-                    : `Ditt kamera vises nå stort, og ${getPeerRoleName()} er i lite vindu`,
+                    ? `${getPeerRoleName()} is now shown large, and your camera is small`
+                    : `Your camera is now shown large, and ${getPeerRoleName()} is in the small window`,
                 'info'
             );
         }
@@ -2899,11 +3053,11 @@ if __name__ == "__main__":
         }
 
         function setSurroundingsHiddenForOneChat(hideAll) {
-            const topHeader = document.querySelector('header');
+            const topHeader = document.getElementById('advanced-header');
             const leftPanel = document.getElementById('left-panel');
             const rightPanel = document.getElementById('right-panel');
             const bottomFooter = document.querySelector('footer');
-            const mobileNav = document.querySelector('nav');
+            const mobileNav = document.getElementById('advanced-mobile-nav');
             const mobileHud = document.getElementById('mobile-3d-floating-hud');
             const leftToggle = document.getElementById('left-toggle-btn');
             const rightToggle = document.getElementById('right-toggle-btn');
@@ -2957,7 +3111,7 @@ if __name__ == "__main__":
             const subEl = document.getElementById('onechat-role-subtitle');
             if (titleEl) titleEl.textContent = peerName;
             if (subEl) {
-                subEl.innerHTML = `Du er <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}">${myName}</strong>`;
+                subEl.innerHTML = `You are <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}">${myName}</strong>`;
             }
         }
 
@@ -2994,13 +3148,16 @@ if __name__ == "__main__":
             if (window.innerWidth < 1024) {
                 switchMobileTab('3d');
             }
+            if (document.body.classList.contains('basic-mode') && typeof BASIC !== 'undefined' && BASIC.tab !== 'connect') {
+                basicShowTab('connect');
+            }
         }
 
         function quickConnectForOneChat() {
             runSimulationScenario('punch');
-            activateFullP2PTunnel('OneChat Hurtig-Hullslåing');
+            activateFullP2PTunnel('OneChat Quick Hole Punch');
             syncOneChatLockUI();
-            showToast('Hull slått! OneGiver og OneReceiver er nå koblet sammen i OneChat.', 'success');
+            showToast('Hole punched! OneGiver and OneReceiver are now connected in OneChat.', 'success');
         }
 
         async function ensureOneChatCameraStarted() {
@@ -3021,7 +3178,7 @@ if __name__ == "__main__":
                 await localVideo.play();
             } catch (err) {
                 // Fallback if webcam permission is denied or unavailable: local video stays hidden and synthetic Snap generator is used
-                document.getElementById('onechat-stage-status').textContent = 'Syntetisk P2P-Kamera Aktiv';
+                document.getElementById('onechat-stage-status').textContent = 'Synthetic P2P Camera Active';
             }
         }
 
@@ -3032,7 +3189,7 @@ if __name__ == "__main__":
                 ONECHAT_STATE.localStream = null;
             }
             await ensureOneChatCameraStarted();
-            showToast('Byttet kameraretning i OneChat', 'info');
+            showToast('Camera direction switched in OneChat', 'info');
         }
 
         function cycleOneChatFilter() {
@@ -3104,8 +3261,8 @@ if __name__ == "__main__":
                 ctx.fillStyle = '#38bdf8';
                 ctx.font = '11px JetBrains Mono, monospace';
                 const statusLine = ONECHAT_STATE.inCall
-                    ? `DIREKTE P2P VIDEO/LYD STREAM (${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort})`
-                    : `KLAR FOR SNAP & VIDEOSAMTALE`;
+                    ? `DIRECT P2P VIDEO/AUDIO STREAM (${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort})`
+                    : `READY FOR SNAP & VIDEO CALL`;
                 ctx.fillText(statusLine, cx, cy + 76);
 
                 ONECHAT_STATE.simAnimFrame = requestAnimationFrame(renderLoop);
@@ -3230,8 +3387,8 @@ if __name__ == "__main__":
             document.getElementById('btn-onechat-hangup').classList.remove('hidden');
             document.getElementById('onechat-call-timer').classList.remove('hidden');
             document.getElementById('onechat-stage-status').textContent = withVideo
-                ? `P2P Videosamtale (${getPeerRoleName()} vises stort)`
-                : `P2P Lydsamtale med ${getPeerRoleName()}`;
+                ? `P2P Video Call (${getPeerRoleName()} shown large)`
+                : `P2P Audio Call with ${getPeerRoleName()}`;
 
             ONECHAT_STATE.callStartTime = Date.now();
             if (ONECHAT_STATE.callTimerInterval) clearInterval(ONECHAT_STATE.callTimerInterval);
@@ -3258,10 +3415,10 @@ if __name__ == "__main__":
                 sender: getRoleName(APP_STATE.role)
             });
 
-            appendOneChatEntry('SYSTEM', `📹 ${getRoleName(APP_STATE.role)} startet en direkte P2P ${withVideo ? 'videosamtale' : 'lydsamtale'}`, true, 'call');
+            appendOneChatEntry('SYSTEM', `📹 ${getRoleName(APP_STATE.role)} started a direct P2P ${withVideo ? 'video call' : 'audio call'}`, true, 'call');
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.25);
             spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.25);
-            showToast(`Videosamtale startet! Eget kamera er nå lite — trykk på det for å bytte.`, 'success');
+            showToast(`Video call started! Your own camera is now small — tap it to swap.`, 'success');
         }
 
         function endOneChatCall() {
@@ -3276,7 +3433,7 @@ if __name__ == "__main__":
             }
             document.getElementById('btn-onechat-hangup').classList.add('hidden');
             document.getElementById('onechat-call-timer').classList.add('hidden');
-            document.getElementById('onechat-stage-status').textContent = 'Snap-Kamera Klar';
+            document.getElementById('onechat-stage-status').textContent = 'Snap Camera Ready';
 
             applyOneChatVideoPipLayout();
 
@@ -3285,14 +3442,14 @@ if __name__ == "__main__":
                 action: 'END',
                 sender: getRoleName(APP_STATE.role)
             });
-            appendOneChatEntry('SYSTEM', `Samtalen mellom OneGiver og OneReceiver ble avsluttet.`, true, 'call');
+            appendOneChatEntry('SYSTEM', `The call between OneGiver and OneReceiver ended.`, true, 'call');
             showToast('Videosamtale avsluttet.', 'info');
         }
 
         async function handleIncomingOneChatCallSignal(sig) {
             if (sig.action === 'START') {
-                appendOneChatEntry(sig.sender || getPeerRoleName(), `📹 Startet direkte P2P ${sig.withVideo ? 'videosamtale' : 'lydsamtale'}!`, false, 'call');
-                showToast(`${sig.sender || getPeerRoleName()} ringer deg direkte på OneChat!`, 'success');
+                appendOneChatEntry(sig.sender || getPeerRoleName(), `📹 Started a direct P2P ${sig.withVideo ? 'video call' : 'audio call'}!`, false, 'call');
+                showToast(`${sig.sender || getPeerRoleName()} is calling you directly on OneChat!`, 'success');
                 if (!ONECHAT_STATE.inCall) {
                     ONECHAT_STATE.inCall = true;
                     ONECHAT_STATE.isVideoCall = sig.withVideo;
@@ -3340,7 +3497,7 @@ if __name__ == "__main__":
             const video = document.getElementById('onechat-local-video');
             const snapCanvas = document.getElementById('onechat-snap-canvas');
             const captionInput = document.getElementById('onechat-snap-caption');
-            const caption = captionInput.value.trim() || `Snap fra ${getRoleName(APP_STATE.role)} ⚡`;
+            const caption = captionInput.value.trim() || `Snap from ${getRoleName(APP_STATE.role)} ⚡`;
 
             snapCanvas.width = 480;
             snapCanvas.height = 360;
@@ -3387,13 +3544,13 @@ if __name__ == "__main__":
             });
 
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.3);
-            showToast(`Bilde-Snap sendt direkte til ${getPeerRoleName()}!`, 'success');
+            showToast(`Picture Snap sent directly to ${getPeerRoleName()}!`, 'success');
 
             // If in simulator mode without a remote peer browser connected, let peer send a fun Snap reply
             if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
                 setTimeout(() => {
                     spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.3);
-                    appendOneChatEntry(getPeerRoleName(), `🔥 Åpnet din Snap ("${caption}") direkte over UDP port ${APP_STATE.fwBPort}!`, false, 'chat');
+                    appendOneChatEntry(getPeerRoleName(), `🔥 Opened your Snap ("${caption}") directly over UDP port ${APP_STATE.fwBPort}!`, false, 'chat');
                 }, 1100);
             }
         }
@@ -3409,13 +3566,13 @@ if __name__ == "__main__":
                 <div class="flex items-center justify-between">
                     <span class="font-extrabold text-[11px] uppercase tracking-wider ${isSelf ? 'text-rose-400' : 'text-yellow-300'}">${sender}</span>
                     <span class="text-[10px] font-mono text-rose-400 flex items-center gap-1">
-                        <i class="fa-solid fa-square"></i> NY BILDE-SNAP ${isEphemeral ? `(${ONECHAT_STATE.snapDurationSec}s)` : ''}
+                        <i class="fa-solid fa-square"></i> NEW PICTURE SNAP ${isEphemeral ? `(${ONECHAT_STATE.snapDurationSec}s)` : ''}
                     </span>
                 </div>
                 <div onclick="openSnapViewer('${imageUrl}', '${caption.replace(/'/g, "\\'")}')" class="group relative rounded-xl overflow-hidden border border-rose-500/40 cursor-pointer max-h-40 bg-black flex items-center justify-center">
                     <img src="${imageUrl}" alt="Snap" class="w-full h-36 object-cover group-hover:scale-105 transition duration-300">
                     <div class="absolute inset-0 bg-black/35 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <span class="px-3 py-1 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-xs">Trykk for å åpne Snap</span>
+                        <span class="px-3 py-1 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-xs">Tap to open Snap</span>
                     </div>
                 </div>
             `;
@@ -3428,7 +3585,7 @@ if __name__ == "__main__":
                     card.innerHTML = `
                         <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
                             <span>${sender}</span>
-                            <span><i class="fa-regular fa-square text-rose-400 mr-1"></i>Snap Åpnet & Utløpt</span>
+                            <span><i class="fa-regular fa-square text-rose-400 mr-1"></i>Snap Opened & Expired</span>
                         </div>
                     `;
                 }, (ONECHAT_STATE.snapDurationSec + 4) * 1000);
@@ -3529,7 +3686,7 @@ if __name__ == "__main__":
             if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
                 setTimeout(() => {
                     spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.2);
-                    appendOneChatEntry(peerName, `👻 Lest på OneChat: "${text}" (Direkte P2P uten mellomtjener)`, false, 'chat');
+                    appendOneChatEntry(peerName, `👻 Read on OneChat: "${text}" (Direct P2P with no middleman)`, false, 'chat');
                 }, 700);
             }
         }
@@ -3541,10 +3698,10 @@ if __name__ == "__main__":
             item.className = 'p-2 rounded bg-emerald-950/60 border border-emerald-500/40 flex items-center justify-between text-[11px]';
             item.innerHTML = `
                 <span class="text-emerald-200 truncate max-w-[200px]"><i class="fa-solid fa-check mr-1"></i>${fileName}</span>
-                <a href="${url}" download="${fileName}" class="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">Last ned</a>
+                <a href="${url}" download="${fileName}" class="px-2 py-0.5 rounded bg-emerald-600 hover:bg-emerald-500 text-white font-semibold">Download</a>
             `;
             list.prepend(item);
-            showToast(`Filen "${fileName}" ble overført direkte PC-til-PC!`, 'success');
+            showToast(`The file "${fileName}" was transferred directly PC-to-PC!`, 'success');
         }
 
         async function handleFileSelect(event) {
@@ -3552,7 +3709,7 @@ if __name__ == "__main__":
             if (!file) return;
 
             if (!APP_STATE.isTunnelActive) {
-                activateFullP2PTunnel('P2P Filstrømming');
+                activateFullP2PTunnel('P2P File Streaming');
             }
 
             const progressWrap = document.getElementById('file-progress-wrap');
@@ -3581,7 +3738,7 @@ if __name__ == "__main__":
                 }));
             }
 
-            logPacketEvent('P2P-FILE', `PC_${APP_STATE.role}`, 'Tunnel', 'TUNNEL', `Starter direkte overføring av "${file.name}" (${(file.size / 1024).toFixed(1)} KB) i 16 KB fragmenter`);
+            logPacketEvent('P2P-FILE', `PC_${APP_STATE.role}`, 'Tunnel', 'TUNNEL', `Starting direct transfer of "${file.name}" (${(file.size / 1024).toFixed(1)} KB) in 16 KB fragments`);
 
             const sendNextBatch = () => {
                 let batchCount = 0;
@@ -3644,7 +3801,7 @@ if __name__ == "__main__":
             camControl.desiredSpherical.phi = fit.phi;
             camControl.desiredSpherical.theta = fit.theta;
             if (showNotification) {
-                showToast('3D-kamera tilpasset skjermformatet!', 'info');
+                showToast('3D camera adapted to the screen format!', 'info');
             }
         }
 
@@ -3851,7 +4008,7 @@ if __name__ == "__main__":
                 }
 
                 if (APP_STATE.natTtlRemaining <= 0.05) {
-                    logPacketEvent('NAT-TTL', 'Brannmur A/B', 'State Table', 'DROP', 'NAT-tilstand utløpt på tid (Ingen Keep-Alive). Hullet ble lukket.');
+                    logPacketEvent('NAT-TTL', 'Firewall A/B', 'State Table', 'DROP', 'NAT state expired (no Keep-Alive). The hole was closed.');
                     resetFirewallStates();
                 }
             } else {
@@ -3890,17 +4047,17 @@ if __name__ == "__main__":
                     if (!APP_STATE.fwBOpen || !portMatches) {
                         // DROPPED BY FIREWALL B!
                         spawnImpactExplosion(new THREE.Vector3(8, pkt.mesh.position.y, 0), 0xf43f5e);
-                        logPacketEvent(pkt.protocol, `${APP_STATE.fwAWanIp}:${pkt.customPort}`, `Brannmur_B:${pkt.customPort}`, 'DROP',
+                        logPacketEvent(pkt.protocol, `${APP_STATE.fwAWanIp}:${pkt.customPort}`, `Firewall_B:${pkt.customPort}`, 'DROP',
                             !APP_STATE.fwBOpen
-                                ? 'Blokkert av Brannmur B (Ingen utgående sesjon i tilstandstabellen)'
-                                : `Port-mismatch mot Symmetrisk NAT (Prøvde ${pkt.customPort}, hull er på ${APP_STATE.fwBPort})`);
+                                ? 'Blocked by Firewall B (No outbound session in the state table)'
+                                : `Port mismatch against Symmetric NAT (Tried ${pkt.customPort}, hole is at ${APP_STATE.fwBPort})`);
                         scene.remove(pkt.mesh);
                         APP_STATE.packetsInFlight.splice(i, 1);
                         continue;
                     } else {
                         // Hole is open and port matches! Lock in full P2P tunnel!
                         if (!APP_STATE.isTunnelActive) {
-                            activateFullP2PTunnel(`${pkt.protocol} Hole Punch på port ${pkt.customPort}`);
+                            activateFullP2PTunnel(`${pkt.protocol} Hole Punch on port ${pkt.customPort}`);
                         }
                     }
                 } else if (!pkt.isAToB && !pkt.checkedPeerFw && curX <= -7.8) {
@@ -3908,13 +4065,13 @@ if __name__ == "__main__":
                     if (!APP_STATE.fwAOpen) {
                         // DROPPED BY FIREWALL A!
                         spawnImpactExplosion(new THREE.Vector3(-8, pkt.mesh.position.y, 0), 0xf43f5e);
-                        logPacketEvent(pkt.protocol, `${APP_STATE.fwBWanIp}:${pkt.customPort}`, `Brannmur_A:${pkt.customPort}`, 'DROP', 'Blokkert av Brannmur A');
+                        logPacketEvent(pkt.protocol, `${APP_STATE.fwBWanIp}:${pkt.customPort}`, `Firewall_A:${pkt.customPort}`, 'DROP', 'Blocked by Firewall A');
                         scene.remove(pkt.mesh);
                         APP_STATE.packetsInFlight.splice(i, 1);
                         continue;
                     } else {
                         if (!APP_STATE.isTunnelActive) {
-                            activateFullP2PTunnel(`${pkt.protocol} Hole Punch på port ${pkt.customPort}`);
+                            activateFullP2PTunnel(`${pkt.protocol} Hole Punch on port ${pkt.customPort}`);
                         }
                     }
                 }
@@ -3943,31 +4100,614 @@ if __name__ == "__main__":
             renderer.render(scene, camera);
         }
 
+        /**************************************************************************
+         * BASIC VIEW: SIMPLE QR-BASED SDP EXCHANGE (CONNECT) + ONECHAT
+         **************************************************************************/
+        const BASIC = {
+            tab: 'connect',      // 'connect' | 'onechat'
+            step: 'choose',      // 'choose' | 'host-offer' | 'guest-scan' | 'guest-answer' | 'connected'
+            code: '',            // current Offer/Answer text shown as a QR code
+            kind: 'offer',       // 'offer' | 'answer'
+            qrCanvas: null,
+            stream: null,
+            raf: null,
+            lastBadScanAt: 0,
+            busy: false
+        };
+
+        function basicEl(id) { return document.getElementById(id); }
+
+        function basicIsConnected() {
+            const dc = APP_STATE.dataChannel;
+            return !!(dc && dc.readyState === 'open');
+        }
+
+        function waitIceGatheringComplete(pc, timeoutMs) {
+            return new Promise((resolve) => {
+                if (pc.iceGatheringState === 'complete') return resolve();
+                let timer = null;
+                const finish = () => {
+                    pc.removeEventListener('icegatheringstatechange', check);
+                    clearTimeout(timer);
+                    resolve();
+                };
+                const check = () => { if (pc.iceGatheringState === 'complete') finish(); };
+                pc.addEventListener('icegatheringstatechange', check);
+                timer = setTimeout(finish, timeoutMs);
+            });
+        }
+
+        // Compact SDP serializer: only the fields WebRTC needs to rebuild a data-channel session
+        function basicEncodeDesc(desc) {
+            const sdp = desc.sdp;
+            const pick = (re) => { const m = sdp.match(re); return m ? m[1].trim() : ''; };
+            const candidates = sdp.split(/\r?\n/)
+                .filter(l => l.startsWith('a=candidate:') && / udp /i.test(l))
+                .map(l => l.slice('a=candidate:'.length).replace(/ generation \d+.*$/, '').trim());
+            const obj = {
+                v: 1,
+                t: desc.type === 'offer' ? 'o' : 'a',
+                u: pick(/a=ice-ufrag:(.+)/),
+                p: pick(/a=ice-pwd:(.+)/),
+                f: pick(/a=fingerprint:(.+)/),
+                s: pick(/a=setup:(.+)/),
+                c: candidates
+            };
+            return 'OC1:' + btoa(JSON.stringify(obj));
+        }
+
+        function basicBuildSdp(o) {
+            const lines = [
+                'v=0',
+                'o=- 4611731400430051336 2 IN IP4 127.0.0.1',
+                's=-',
+                't=0 0',
+                'a=group:BUNDLE 0',
+                'a=msid-semantic: WMS',
+                'm=application 9 UDP/DTLS/SCTP webrtc-datachannel',
+                'c=IN IP4 0.0.0.0',
+                'a=ice-ufrag:' + o.u,
+                'a=ice-pwd:' + o.p,
+                'a=fingerprint:' + o.f,
+                'a=setup:' + (o.s || (o.t === 'o' ? 'actpass' : 'active')),
+                'a=mid:0',
+                'a=sctp-port:5000',
+                'a=max-message-size:262144'
+            ];
+            (o.c || []).forEach(c => lines.push('a=candidate:' + c + ' generation 0'));
+            lines.push('a=end-of-candidates');
+            return lines.join('\r\n') + '\r\n';
+        }
+
+        // Render the code as a shareable PNG: QR + caption, with a quiet zone so chat-app compression still scans
+        function basicMakeQrCanvas(text, title, subtitle) {
+            const tmp = document.createElement('div');
+            tmp.style.cssText = 'position:fixed;left:-9999px;top:0;';
+            document.body.appendChild(tmp);
+            new QRCode(tmp, { text, width: 460, height: 460, colorDark: '#000000', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.L });
+            const src = tmp.querySelector('canvas');
+            const W = 560, H = 700;
+            const c = document.createElement('canvas');
+            c.width = W; c.height = H;
+            const x = c.getContext('2d');
+            x.fillStyle = '#ffffff';
+            x.fillRect(0, 0, W, H);
+            x.imageSmoothingEnabled = false;
+            x.drawImage(src, 50, 40, 460, 460);
+            x.textAlign = 'center';
+            x.fillStyle = '#0f172a';
+            x.font = 'bold 32px Arial, Helvetica, sans-serif';
+            x.fillText(title, W / 2, 560);
+            x.fillStyle = '#334155';
+            x.font = '21px Arial, Helvetica, sans-serif';
+            x.fillText(subtitle, W / 2, 600);
+            x.fillStyle = '#64748b';
+            x.font = '17px Arial, Helvetica, sans-serif';
+            x.fillText('joranlager.github.io/OneChat', W / 2, 650);
+            tmp.remove();
+            return c;
+        }
+
+        function basicShowCode(kind, code) {
+            BASIC.kind = kind;
+            BASIC.code = code;
+            const isOffer = kind === 'offer';
+            BASIC.qrCanvas = basicMakeQrCanvas(
+                code,
+                isOffer ? 'OneChat — Offer' : 'OneChat — Answer',
+                isOffer ? 'Scan with OneChat to connect' : 'Scan with OneChat to finish connecting'
+            );
+            basicEl('basic-qr-img').src = BASIC.qrCanvas.toDataURL('image/png');
+        }
+
+        function basicRender() {
+            const show = (id, on) => basicEl(id).classList.toggle('hidden', !on);
+            const step = BASIC.step;
+            show('basic-step-choose', step === 'choose');
+            show('basic-qr-card', step === 'host-offer' || step === 'guest-answer');
+            show('basic-scan-card', step === 'host-offer' || step === 'guest-scan');
+            show('basic-done-card', step === 'connected');
+            show('basic-btn-reset', step !== 'choose');
+
+            if (step === 'host-offer') {
+                basicEl('basic-qr-badge').textContent = 'STEP 1';
+                basicEl('basic-qr-title').textContent = 'Your Offer';
+                basicEl('basic-qr-hint').textContent = 'Send this QR image to the other person (copy it into any chat app) or let them scan your screen.';
+                basicEl('basic-scan-badge').textContent = 'STEP 2';
+                basicEl('basic-scan-title').textContent = 'Scan their Answer';
+                basicEl('basic-scan-hint').textContent = 'When they send their Answer QR code back, scan it here — or upload / paste the image.';
+            } else if (step === 'guest-scan') {
+                basicEl('basic-scan-badge').textContent = 'STEP 1';
+                basicEl('basic-scan-title').textContent = 'Scan the Offer';
+                basicEl('basic-scan-hint').textContent = 'Scan the Offer QR code you received with your camera — or upload / paste the image.';
+            } else if (step === 'guest-answer') {
+                basicEl('basic-qr-badge').textContent = 'STEP 2';
+                basicEl('basic-qr-title').textContent = 'Your Answer';
+                basicEl('basic-qr-hint').textContent = 'Send this QR image back (copy it into the same chat) or show it on your screen. Once they scan it, you are connected.';
+            }
+            basicEl('basic-btn-share').classList.toggle('hidden', !(navigator.canShare && navigator.share));
+            basicUpdateStatus();
+        }
+
+        function basicUpdateStatus() {
+            const pill = basicEl('basic-status-pill');
+            const dot = basicEl('basic-status-dot');
+            const text = basicEl('basic-status-text');
+            const line = basicEl('basic-status-line');
+            const lock = basicEl('basic-tab-lock');
+            const connected = basicIsConnected();
+            const pairing = !connected && (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer');
+            const ice = APP_STATE.rtcPeer ? APP_STATE.rtcPeer.iceConnectionState : '';
+
+            if (connected) {
+                pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 font-mono';
+                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                text.textContent = 'CONNECTED';
+                lock.className = 'fa-solid fa-lock-open text-[10px] text-emerald-400';
+            } else if (pairing) {
+                pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-amber-950/70 border border-amber-500/40 text-amber-300 font-mono';
+                dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                text.textContent = 'PAIRING…';
+                lock.className = 'fa-solid fa-lock text-[10px] text-rose-400';
+            } else {
+                pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300 font-mono';
+                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                text.textContent = 'NOT CONNECTED';
+                lock.className = 'fa-solid fa-lock text-[10px] text-rose-400';
+            }
+
+            let msg = '';
+            if (!connected && APP_STATE.rtcPeer && (ice === 'checking')) msg = 'Establishing the direct link…';
+            if (!connected && (ice === 'failed')) msg = 'The direct link could not be established. Both devices need a network path to each other — same Wi-Fi works best, or tick “Connect across the internet” and start over.';
+            if (BASIC.busy) msg = 'Working…';
+            line.textContent = msg;
+            line.classList.toggle('hidden', !msg);
+        }
+
+        // Periodic sync between the real WebRTC state and the Basic UI
+        function basicPoll() {
+            if (!document.body.classList.contains('basic-mode')) return;
+            const connected = basicIsConnected();
+            if (connected && BASIC.step !== 'connected') {
+                BASIC.step = 'connected';
+                basicStopCamera();
+                basicRender();
+                showToast('Connected! Open OneChat to start talking.', 'success');
+            } else if (!connected && BASIC.step === 'connected') {
+                showToast('The connection was closed.', 'warn');
+                basicReset(true);
+            } else {
+                basicUpdateStatus();
+            }
+            if (connected && BASIC.tab === 'onechat' && !ONECHAT_STATE.isOpen) {
+                openOneChatTab();
+            }
+        }
+
+        function basicReset(closePeer) {
+            basicStopCamera();
+            if (closePeer) {
+                try { if (APP_STATE.dataChannel) APP_STATE.dataChannel.close(); } catch (e) {}
+                try { if (APP_STATE.rtcPeer) APP_STATE.rtcPeer.close(); } catch (e) {}
+                APP_STATE.rtcPeer = null;
+                APP_STATE.dataChannel = null;
+                resetFirewallStates();
+                syncOneChatLockUI();
+            }
+            BASIC.step = 'choose';
+            BASIC.code = '';
+            BASIC.busy = false;
+            basicEl('basic-code-input').value = '';
+            basicRender();
+        }
+
+        async function basicStartHost() {
+            basicReset(true);
+            BASIC.busy = true;
+            basicUpdateStatus();
+            try {
+                APP_STATE.useStun = basicEl('basic-use-stun').checked;
+                APP_STATE.role = 'A';
+                updateOneChatHeaderRole();
+                const pc = createOfflinePeerConnection();
+                const dc = pc.createDataChannel('offline-p2p-holepunch', { ordered: true });
+                setupDataChannelHandlers(dc);
+                await pc.setLocalDescription(await pc.createOffer());
+                await waitIceGatheringComplete(pc, APP_STATE.useStun ? 4000 : 2000);
+                basicShowCode('offer', basicEncodeDesc(pc.localDescription));
+                BASIC.step = 'host-offer';
+            } catch (err) {
+                showToast('Could not create the Offer: ' + err.message, 'error');
+                BASIC.step = 'choose';
+            }
+            BASIC.busy = false;
+            basicRender();
+        }
+
+        function basicChooseJoin() {
+            basicReset(true);
+            BASIC.step = 'guest-scan';
+            basicRender();
+        }
+
+        async function basicAcceptOffer(o) {
+            BASIC.busy = true;
+            basicStopCamera();
+            basicUpdateStatus();
+            try {
+                const needsStun = (o.c || []).some(c => / typ srflx/.test(c));
+                APP_STATE.useStun = needsStun || basicEl('basic-use-stun').checked;
+                APP_STATE.role = 'B';
+                updateOneChatHeaderRole();
+                const pc = createOfflinePeerConnection();
+                await pc.setRemoteDescription(new RTCSessionDescription({ type: 'offer', sdp: basicBuildSdp(o) }));
+                await pc.setLocalDescription(await pc.createAnswer());
+                await waitIceGatheringComplete(pc, APP_STATE.useStun ? 4000 : 2000);
+                basicShowCode('answer', basicEncodeDesc(pc.localDescription));
+                BASIC.step = 'guest-answer';
+                showToast('Offer accepted. Send your Answer QR code back.', 'success');
+            } catch (err) {
+                showToast('Could not use that Offer: ' + err.message, 'error');
+                BASIC.step = 'guest-scan';
+            }
+            BASIC.busy = false;
+            basicRender();
+        }
+
+        async function basicAcceptAnswer(o) {
+            BASIC.busy = true;
+            basicStopCamera();
+            basicUpdateStatus();
+            try {
+                await APP_STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: basicBuildSdp(o) }));
+                showToast('Answer accepted — connecting…', 'success');
+            } catch (err) {
+                showToast('Could not use that Answer: ' + err.message, 'error');
+            }
+            BASIC.busy = false;
+            basicRender();
+        }
+
+        // Accepts the text of a scanned/pasted code and routes it by type
+        async function basicHandleCode(raw) {
+            const text = (raw || '').trim();
+            const idx = text.indexOf('OC1:');
+            if (idx < 0) {
+                showToast('That does not look like a OneChat QR code.', 'warn');
+                return false;
+            }
+            const code = text.slice(idx).split(/\s/)[0];
+            let o;
+            try {
+                o = JSON.parse(atob(code.slice(4)));
+                if (!o || !o.u || !o.p || !o.f) throw new Error('incomplete');
+            } catch (e) {
+                showToast('This QR code is damaged or incomplete. Try again.', 'error');
+                return false;
+            }
+            if (BASIC.busy) return false;
+            if (o.t === 'o') {
+                if (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer') {
+                    showToast('That is an Offer, but you already have one open. Press “Start over” to join it instead.', 'warn');
+                    return false;
+                }
+                if (BASIC.step === 'connected') return false;
+                await basicAcceptOffer(o);
+                return true;
+            }
+            if (o.t === 'a') {
+                if (BASIC.step !== 'host-offer') {
+                    showToast('That is an Answer. Start a connection first, then scan the Answer.', 'warn');
+                    return false;
+                }
+                await basicAcceptAnswer(o);
+                return true;
+            }
+            showToast('Unknown QR code type.', 'warn');
+            return false;
+        }
+
+        function basicUseTypedCode() {
+            basicHandleCode(basicEl('basic-code-input').value);
+        }
+
+        /* ----- Image / clipboard / camera input ----- */
+        async function basicDecodeBlob(blob) {
+            try {
+                const bmp = await createImageBitmap(blob);
+                let code = null;
+                for (const maxSide of [1600, 800]) {
+                    const scale = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+                    const c = document.createElement('canvas');
+                    c.width = Math.max(1, Math.round(bmp.width * scale));
+                    c.height = Math.max(1, Math.round(bmp.height * scale));
+                    const ctx = c.getContext('2d', { willReadFrequently: true });
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, c.width, c.height);
+                    ctx.drawImage(bmp, 0, 0, c.width, c.height);
+                    const d = ctx.getImageData(0, 0, c.width, c.height);
+                    code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'attemptBoth' });
+                    if (code && code.data) break;
+                }
+                if (code && code.data) return basicHandleCode(code.data);
+                showToast('No QR code found in that image. Make sure the whole code is visible.', 'warn');
+            } catch (e) {
+                showToast('Could not read that image.', 'error');
+            }
+            return false;
+        }
+
+        function basicImageFileChosen(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (file) basicDecodeBlob(file);
+        }
+
+        async function basicPasteFromClipboard() {
+            try {
+                if (navigator.clipboard && navigator.clipboard.read) {
+                    const items = await navigator.clipboard.read();
+                    for (const item of items) {
+                        const imgType = item.types.find(t => t.startsWith('image/'));
+                        if (imgType) return basicDecodeBlob(await item.getType(imgType));
+                        if (item.types.includes('text/plain')) {
+                            const blob = await item.getType('text/plain');
+                            return basicHandleCode(await blob.text());
+                        }
+                    }
+                } else if (navigator.clipboard && navigator.clipboard.readText) {
+                    return basicHandleCode(await navigator.clipboard.readText());
+                }
+            } catch (e) { /* fall through to hint */ }
+            showToast('Press Ctrl+V (or long-press and choose Paste) on this page to paste a QR image or code.', 'info');
+            return false;
+        }
+
+        document.addEventListener('paste', (e) => {
+            if (!document.body.classList.contains('basic-mode') || BASIC.tab !== 'connect') return;
+            if (BASIC.step !== 'host-offer' && BASIC.step !== 'guest-scan' && BASIC.step !== 'choose') return;
+            const target = e.target;
+            if (target && target.id === 'basic-code-input') return;
+            const items = Array.from((e.clipboardData && e.clipboardData.items) || []);
+            const img = items.find(i => i.type && i.type.startsWith('image/'));
+            if (img) {
+                e.preventDefault();
+                basicDecodeBlob(img.getAsFile());
+                return;
+            }
+            const txt = e.clipboardData ? e.clipboardData.getData('text') : '';
+            if (txt && txt.includes('OC1:')) {
+                e.preventDefault();
+                basicHandleCode(txt);
+            }
+        });
+
+        async function basicToggleCamera() {
+            if (BASIC.stream) { basicStopCamera(); return; }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                showToast('Camera not available here — upload or paste a QR image instead.', 'warn');
+                return;
+            }
+            try {
+                BASIC.stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: { ideal: 'environment' }, width: { ideal: 960 }, height: { ideal: 960 } },
+                    audio: false
+                });
+                const video = basicEl('basic-video');
+                video.srcObject = BASIC.stream;
+                await video.play();
+                basicEl('basic-camera-wrap').classList.remove('hidden');
+                basicEl('basic-btn-camera').querySelector('span').textContent = 'Stop camera';
+                BASIC.raf = requestAnimationFrame(basicScanTick);
+            } catch (err) {
+                BASIC.stream = null;
+                showToast('Camera access was denied or is unavailable — upload or paste a QR image instead.', 'warn');
+            }
+        }
+
+        function basicStopCamera() {
+            if (BASIC.raf) { cancelAnimationFrame(BASIC.raf); BASIC.raf = null; }
+            if (BASIC.stream) {
+                BASIC.stream.getTracks().forEach(t => t.stop());
+                BASIC.stream = null;
+            }
+            const wrap = basicEl('basic-camera-wrap');
+            const btn = basicEl('basic-btn-camera');
+            if (wrap) wrap.classList.add('hidden');
+            if (btn) btn.querySelector('span').textContent = 'Scan with camera';
+        }
+
+        function basicScanTick() {
+            if (!BASIC.stream) return;
+            const video = basicEl('basic-video');
+            if (video.readyState === video.HAVE_ENOUGH_DATA) {
+                const canvas = basicEl('basic-scan-canvas');
+                canvas.width = video.videoWidth;
+                canvas.height = video.videoHeight;
+                const ctx = canvas.getContext('2d', { willReadFrequently: true });
+                ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                const code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
+                if (code && code.data) {
+                    if (code.data.includes('OC1:')) {
+                        basicStopCamera();
+                        basicHandleCode(code.data);
+                        return;
+                    }
+                    const now = Date.now();
+                    if (now - BASIC.lastBadScanAt > 2500) {
+                        BASIC.lastBadScanAt = now;
+                        showToast('That QR code is not a OneChat code.', 'warn');
+                    }
+                }
+            }
+            BASIC.raf = requestAnimationFrame(basicScanTick);
+        }
+
+        /* ----- QR image output: copy / save / share ----- */
+        function basicQrBlob() {
+            return new Promise((resolve) => BASIC.qrCanvas.toBlob(resolve, 'image/png'));
+        }
+
+        async function basicCopyImage() {
+            if (!BASIC.qrCanvas) return;
+            try {
+                const blobPromise = basicQrBlob();
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blobPromise })]);
+                showToast('QR image copied — paste it into any chat app.', 'success');
+            } catch (e) {
+                showToast('Your browser blocked copying images, so the image was saved instead — attach it to your chat.', 'warn');
+                basicSaveImage();
+            }
+        }
+
+        async function basicSaveImage() {
+            if (!BASIC.qrCanvas) return;
+            const blob = await basicQrBlob();
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'onechat-' + BASIC.kind + '.png';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+        }
+
+        async function basicShareImage() {
+            if (!BASIC.qrCanvas) return;
+            const blob = await basicQrBlob();
+            const file = new File([blob], 'onechat-' + BASIC.kind + '.png', { type: 'image/png' });
+            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({ files: [file], title: 'OneChat ' + BASIC.kind, text: 'Scan this QR code with OneChat: https://joranlager.github.io/OneChat/' });
+                    return;
+                } catch (e) {
+                    if (e && e.name === 'AbortError') return;
+                }
+            }
+            showToast('Sharing is not supported here — use Copy image or Save image.', 'info');
+        }
+
+        function basicCopyText() {
+            if (!BASIC.code) return;
+            const done = () => showToast('Code copied as text.', 'success');
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(BASIC.code).then(done, () => basicFallbackCopy(BASIC.code, done));
+            } else {
+                basicFallbackCopy(BASIC.code, done);
+            }
+        }
+
+        function basicFallbackCopy(text, done) {
+            const ta = document.createElement('textarea');
+            ta.value = text;
+            document.body.appendChild(ta);
+            ta.select();
+            try { document.execCommand('copy'); done(); } catch (e) { showToast('Could not copy automatically.', 'warn'); }
+            document.body.removeChild(ta);
+        }
+
+        /* ----- Basic / Advanced view switching and Basic tabs ----- */
+        function basicShowTab(tab, force) {
+            if (!force && BASIC.tab === tab) return;
+            BASIC.tab = tab;
+            const connectTab = basicEl('basic-tab-connect');
+            const chatTab = basicEl('basic-tab-onechat');
+            const connectMain = basicEl('basic-connect');
+            const overlay = basicEl('onechat-overlay');
+            const on = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow';
+            const off = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white';
+
+            if (tab === 'connect') {
+                connectTab.className = on;
+                chatTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-amber-300 hover:text-yellow-200';
+                connectMain.classList.remove('hidden');
+                if (ONECHAT_STATE.isOpen) closeOneChatTab();
+                overlay.classList.add('hidden');
+            } else {
+                connectTab.className = off;
+                chatTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-yellow-500 text-slate-950 shadow';
+                connectMain.classList.add('hidden');
+                basicStopCamera();
+                if (basicIsConnected()) {
+                    openOneChatTab();
+                } else {
+                    syncOneChatLockUI();
+                    overlay.classList.remove('hidden');
+                }
+            }
+        }
+
+        function setViewMode(mode) {
+            const basic = mode === 'basic';
+            document.body.classList.toggle('basic-mode', basic);
+            basicEl('basic-view').classList.toggle('hidden', !basic);
+            try { localStorage.setItem('onechat-view-mode', mode); } catch (e) {}
+            if (basic) {
+                BASIC.tab = 'connect';
+                basicShowTab('connect', true);
+                basicRender();
+            } else {
+                basicStopCamera();
+                if (ONECHAT_STATE.isOpen) closeOneChatTab();
+                basicEl('onechat-overlay').classList.add('hidden');
+                window.dispatchEvent(new Event('resize'));
+            }
+        }
+
+        function basicInit() {
+            let mode = 'basic';
+            try { if (localStorage.getItem('onechat-view-mode') === 'advanced') mode = 'advanced'; } catch (e) {}
+            setViewMode(mode);
+            setInterval(basicPoll, 500);
+        }
+
         // Start Everything on Window Load
         window.onload = function () {
             initWebGL();
             autoFitCameraForScreen(false);
             refreshPythonScript();
-            logPacketEvent('SYSTEM', '3D-Engine', 'WebRTC/UDP', 'OK', 'Klar for autonom NAT Hole Punching på mobil, nettbrett og PC.');
+            logPacketEvent('SYSTEM', '3D Engine', 'WebRTC/UDP', 'OK', 'Ready for autonomous NAT Hole Punching on mobile, tablet and PC.');
             animate();
-            // Run an initial synchronized hole-punching demonstration after 800ms so the user immediately sees the process in 3D
-            setTimeout(() => {
-                runSimulationScenario('punch');
-            }, 800);
+            basicInit();
         };
     </script>
     <script>
         // Discreet site QR code in the top-left header corner
         (function () {
-            const el = document.getElementById('site-qr');
-            if (!el || typeof QRCode === 'undefined') return;
-            new QRCode(el, {
-                text: 'https://joranlager.github.io/OneChat/',
-                width: 40,
-                height: 40,
-                colorDark: '#050811',
-                colorLight: '#ffffff',
-                correctLevel: QRCode.CorrectLevel.M
+            if (typeof QRCode === 'undefined') return;
+            ['site-qr', 'basic-site-qr'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                new QRCode(el, {
+                    text: 'https://joranlager.github.io/OneChat/',
+                    width: 40,
+                    height: 40,
+                    colorDark: '#050811',
+                    colorLight: '#ffffff',
+                    correctLevel: QRCode.CorrectLevel.M
+                });
             });
         })();
     </script>
