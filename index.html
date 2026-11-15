@@ -3220,6 +3220,8 @@ if __name__ == "__main__":
                         if (parsed.batch) batchIncomingFileStart(parsed);
                         else if (parsed.chat) beginTransfer(parsed, 'in');
                         if (!parsed.chat) showToast(`Receiving file directly: ${parsed.name} (${Math.round(parsed.size / 1024)} KB)`, 'info');
+                    } else if (parsed.type === 'TRANSFER_PAUSE') {
+                        handleRemotePause(parsed.id, !!parsed.paused);
                     } else if (parsed.type === 'BATCH_START') {
                         batchIncomingStart(parsed);
                     } else if (parsed.type === 'FILE_CANCEL') {
@@ -4059,8 +4061,10 @@ if __name__ == "__main__":
                     <div class="snap-status text-[10px] text-slate-400">${dir === 'out' ? 'Sending…' : 'Receiving…'}</div>
                     <div class="h-1 mt-1 rounded bg-slate-800 overflow-hidden"><div class="xfer-bar h-full bg-cyan-400" style="width:0%"></div></div>
                 </button>
+                <button type="button" class="xfer-pause w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center shrink-0" title="Pause transfer"><i class="fa-solid fa-pause text-xs"></i></button>
                 <button type="button" class="xfer-cancel w-8 h-8 rounded-full bg-rose-700/80 hover:bg-rose-600 text-white flex items-center justify-center shrink-0" title="Cancel all files"><i class="fa-solid fa-xmark text-xs"></i></button>`;
-            card.querySelector('.xfer-open').onclick = () => openBatchDetail(id);
+            card.querySelector('.xfer-open').onclick = () => openBatchOrOffer(id);
+            card.querySelector('.xfer-pause').onclick = () => togglePause(id);
             card.querySelector('.xfer-cancel').onclick = () => cancelBatch(id);
             feed.appendChild(card);
             feed.scrollTop = feed.scrollHeight;
@@ -4075,10 +4079,9 @@ if __name__ == "__main__":
                 total += f.size;
                 done += f.state === 'done' ? f.size : Math.min(f.done, f.size);
             });
-            const now = b.end || performance.now();
-            const elapsed = b.start ? Math.max(0.001, (now - b.start) / 1000) : 0;
+            const elapsed = holderElapsed(b);
             const speed = elapsed ? done / elapsed : 0;
-            const eta = speed > 0 ? (total - done) / speed : Infinity;
+            const eta = (speed > 0 && !b.paused) ? (total - done) / speed : Infinity;
             const pct = total ? Math.min(100, Math.floor(done / total * 100)) : 100;
             return { done, total, speed, eta, pct };
         }
@@ -4094,7 +4097,11 @@ if __name__ == "__main__":
             const nDone = b.files.filter(f => f.state === 'done').length;
             const st = b.card.querySelector('.snap-status');
             if (!finished) {
-                if (st) st.textContent = `${b.dir === 'out' ? 'Sending' : 'Receiving'} file ${Math.min(n, nDone + b.files.filter(f => f.state === 'cancelled' || f.state === 'failed').length + 1)}/${n} · ${pct}% · ${fmtBytes(Math.round(speed))}/s`;
+                const bar0 = b.card.querySelector('.xfer-bar');
+                if (bar0) { bar0.classList.toggle('bg-amber-400', !!b.paused); bar0.classList.toggle('bg-cyan-400', !b.paused); }
+                if (b.paused) { if (st) st.textContent = `Paused · ${pct}%`; }
+                else if (b.dir === 'in' && b.accepted === undefined) { if (st) st.textContent = `Waiting for your answer — tap to open · ${pct}%`; }
+                else if (st) st.textContent = `${b.dir === 'out' ? 'Sending' : 'Receiving'} file ${Math.min(n, nDone + b.files.filter(f => f.state === 'cancelled' || f.state === 'failed').length + 1)}/${n} · ${pct}% · ${fmtBytes(Math.round(speed))}/s`;
                 const bar = b.card.querySelector('.xfer-bar'); if (bar) bar.style.width = pct + '%';
             } else if (!b.end) {
                 b.end = now;
@@ -4104,6 +4111,7 @@ if __name__ == "__main__":
                 if (st) st.textContent = (b.dir === 'out' ? `Sent ${nDone} of ${n} files` : `Received ${nDone} of ${n} files`) + tail;
                 const bar = b.card.querySelector('.xfer-bar'); if (bar && bar.parentElement) bar.parentElement.remove();
                 const c = b.card.querySelector('.xfer-cancel'); if (c) c.remove();
+                const pz = b.card.querySelector('.xfer-pause'); if (pz) pz.remove();
                 if (b.dir === 'in' && b.accepted) offerBatchZipSave(b);
                 if (b.dir === 'in' && nDone > 0) {
                     const z = document.createElement('button');
@@ -4165,10 +4173,11 @@ if __name__ == "__main__":
                 <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-3 shadow-2xl text-xs text-slate-200">
                     <div class="flex items-center gap-3">
                         <span class="w-11 h-11 rounded-full bg-slate-800 text-yellow-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-copy"></i></span>
-                        <div class="min-w-0">
+                        <div class="min-w-0 flex-1">
                             <div class="font-bold text-sm text-white truncate" data-bd="title"></div>
                             <div class="text-slate-400" data-bd="sub"></div>
                         </div>
+                        <button type="button" data-bd="min" class="text-slate-400 hover:text-white p-2 shrink-0" title="Minimize — answer later from the chat"><i class="fa-solid fa-minus"></i></button>
                     </div>
                     <ul class="max-h-32 overflow-y-auto space-y-0.5 text-[11px] text-slate-300 rounded-lg bg-slate-950/60 p-2" data-bd="files"></ul>
                     <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/70 cursor-pointer">
@@ -4192,6 +4201,9 @@ if __name__ == "__main__":
                 li.append(n, z); ul.appendChild(li);
             });
             document.body.appendChild(m);
+            const minimize = () => { closeBatchDialog(); refreshBatch(b, true); showToast('Minimized — tap the transfer in the chat to answer', 'info'); };
+            m.querySelector('[data-bd="min"]').onclick = minimize;
+            m.addEventListener('click', (e) => { if (e.target === m) minimize(); });
             m.querySelector('[data-bd="decline"]').onclick = () => { closeBatchDialog(); declineBatch(b.id); };
             m.querySelector('[data-bd="accept"]').onclick = () => {
                 b.zip = m.querySelector('[data-bd="zip"]').checked;
@@ -4199,6 +4211,13 @@ if __name__ == "__main__":
                 closeBatchDialog();
                 if (b.end) offerBatchZipSave(b);   // everything already arrived while the dialog was open
             };
+        }
+        // Tap a multi-file transfer in the chat: the offer while it is unanswered, the details afterwards
+        function openBatchOrOffer(id) {
+            const b = BATCHES.get(id);
+            if (!b) return;
+            if (b.dir === 'in' && b.accepted === undefined) showBatchOfferDialog(b);
+            else openBatchDetail(id);
         }
         function closeBatchDialog() { const m = document.getElementById('batch-dialog'); if (m) m.remove(); }
 
@@ -4285,6 +4304,11 @@ if __name__ == "__main__":
             for (let i = 0; i < fileList.length; i++) {
                 const it = b.files[i];
                 if (it.cancelled) continue;
+                if (b.paused) {
+                    const r = await waitWhilePaused(b, it, dc);
+                    if (r === 'closed') { b.files.forEach(f => { if (!batchStateTerminal(f.state)) f.state = 'failed'; }); break; }
+                    if (it.cancelled) continue;
+                }
                 it.state = 'active';
                 refreshBatch(b, true);
                 const ok = await sendChatAttachment(fileList[i], { kind: 'file', mode: 'download', batch: b, batchItem: it });
@@ -4321,6 +4345,7 @@ if __name__ == "__main__":
                     <div id="xd-files" class="flex-1 min-h-0 overflow-y-auto space-y-1.5"></div>
                     <div class="flex gap-2 shrink-0">
                         <button type="button" id="xd-zip" class="hidden flex-1 min-h-[40px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-semibold"><i class="fa-solid fa-file-zipper"></i> Download all as ZIP</button>
+                        <button type="button" id="xd-pause" class="flex-1 min-h-[40px] rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold flex items-center justify-center gap-1.5"></button>
                         <button type="button" id="xd-cancel" class="flex-1 min-h-[40px] rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-semibold">Cancel all</button>
                     </div>
                 </div>`;
@@ -4335,6 +4360,7 @@ if __name__ == "__main__":
             });
             m.querySelector('#xd-close').onclick = closeTransferDetail;
             m.querySelector('#xd-cancel').onclick = () => cancelBatch(id);
+            m.querySelector('#xd-pause').onclick = () => togglePause(id);
             m.querySelector('#xd-zip').onclick = () => downloadBatchZip(id);
             renderBatchDetail(b);
         }
@@ -4344,13 +4370,15 @@ if __name__ == "__main__":
             if (!m) return;
             const { done, total, speed, eta, pct } = batchStats(b);
             const finished = b.files.every(f => batchStateTerminal(f.state));
-            m.querySelector('#xd-title').textContent = (b.dir === 'out' ? 'Sending' : 'Receiving') + ' ' + b.files.length + ' files — ' + pct + '%';
+            m.querySelector('#xd-title').textContent = (b.paused ? 'Paused' : (b.dir === 'out' ? 'Sending' : 'Receiving')) + ' ' + b.files.length + ' files — ' + pct + '%';
             m.querySelector('#xd-bar').style.width = pct + '%';
             m.querySelector('#xd-size').textContent = fmtBytes(total);
             m.querySelector('#xd-done').textContent = fmtBytes(done);
             m.querySelector('#xd-speed').textContent = fmtBytes(Math.round(speed)) + '/s';
             m.querySelector('#xd-eta').textContent = finished ? '—' : fmtDuration(eta);
             m.querySelector('#xd-cancel').classList.toggle('hidden', finished);
+            m.querySelector('#xd-pause').classList.toggle('hidden', finished);
+            m.querySelector('#xd-pause').innerHTML = b.paused ? '<i class="fa-solid fa-play"></i> Resume' : '<i class="fa-solid fa-pause"></i> Pause';
             m.querySelector('#xd-zip').classList.toggle('hidden', !(b.dir === 'in' && b.files.some(f => f.state === 'done')));
             const label = { queued: 'Waiting', active: 'Transferring', done: 'Done', cancelled: 'Cancelled', failed: 'Failed' };
             const box = m.querySelector('#xd-files');
@@ -4504,6 +4532,7 @@ if __name__ == "__main__":
                 xfer = beginTransfer(meta, 'out');
                 status = xfer.card.querySelector('.snap-status');
             }
+            const pauseHolder = bItem ? opts.batch : xfer;
             const report = (d) => { if (bItem) { bItem.done = d; refreshBatch(opts.batch); } else updateTransfer(xfer, d); };
 
             const BIG = 262144, PIECE = 16384, HIGH = 512 * 1024;
@@ -4519,6 +4548,11 @@ if __name__ == "__main__":
                 for (let p = 0; p < big.byteLength; p += PIECE) {
                     if (xfer.cancelled) return false;
                     if (dc.readyState !== 'open') return closed();
+                    if (pauseHolder.paused) {
+                        const r = await waitWhilePaused(pauseHolder, xfer, dc);
+                        if (r === 'cancelled') return false;
+                        if (r === 'closed') return closed();
+                    }
                     // Back-pressure by polling: robust even if 'bufferedamountlow' never fires
                     let waited = 0;
                     while (dc.bufferedAmount > HIGH) {
@@ -4586,17 +4620,75 @@ if __name__ == "__main__":
                     <div class="snap-status text-[10px] text-slate-400">${dir === 'out' ? 'Sending…' : 'Receiving…'}</div>
                     <div class="h-1 mt-1 rounded bg-slate-800 overflow-hidden"><div class="xfer-bar h-full bg-cyan-400" style="width:0%"></div></div>
                 </button>
+                <button type="button" class="xfer-pause w-8 h-8 rounded-full bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center shrink-0" title="Pause transfer"><i class="fa-solid fa-pause text-xs"></i></button>
                 <button type="button" class="xfer-cancel w-8 h-8 rounded-full bg-rose-700/80 hover:bg-rose-600 text-white flex items-center justify-center shrink-0" title="Cancel transfer"><i class="fa-solid fa-xmark text-xs"></i></button>`;
             card.querySelector('.xfer-open').onclick = () => openTransferDetail(t.id);
+            card.querySelector('.xfer-pause').onclick = () => togglePause(t.id);
             card.querySelector('.xfer-cancel').onclick = () => cancelTransfer(t.id);
             feed.scrollTop = feed.scrollHeight;
             return t;
         }
 
+        /* ---------- Pause / resume (either side; pausing asks first) ---------- */
+        function holderElapsed(h) {
+            if (!h.start) return 0;
+            const now = performance.now();
+            const end = h.end || now;
+            const pausedNow = h.paused ? Math.max(0, now - h.pauseStart) : 0;
+            return Math.max(0.001, (end - h.start - (h.pausedMs || 0) - pausedNow) / 1000);
+        }
+        function setHolderPaused(h, on) {
+            on = !!on;
+            if (!!h.paused === on) return;
+            const now = performance.now();
+            if (on) h.pauseStart = now;
+            else h.pausedMs = (h.pausedMs || 0) + (now - h.pauseStart);
+            h.paused = on;
+        }
+        function applyPauseUI(h) {
+            if (h.files) refreshBatch(h, true); else updateTransfer(h, h.done);
+            if (h.card) {
+                const pb = h.card.querySelector('.xfer-pause');
+                if (pb) {
+                    pb.innerHTML = '<i class="fa-solid ' + (h.paused ? 'fa-play' : 'fa-pause') + ' text-xs"></i>';
+                    pb.title = h.paused ? 'Resume transfer' : 'Pause transfer';
+                }
+            }
+        }
+        function togglePause(id) {
+            const h = BATCHES.get(id) || TRANSFERS.get(id);
+            if (!h) return;
+            if (h.files ? h.files.every(f => batchStateTerminal(f.state)) : h.cancelled) return;
+            const dc = APP_STATE.dataChannel;
+            if (!h.paused) {
+                const what = h.files ? `${h.files.length} files` : `"${h.name}"`;
+                if (!confirm(`Pause ${h.dir === 'out' ? 'sending' : 'receiving'} ${what}? You can resume it later.`)) return;
+                if (h.paused || (h.files ? h.files.every(f => batchStateTerminal(f.state)) : h.cancelled)) return;   // changed while the dialog was open
+            }
+            setHolderPaused(h, !h.paused);
+            try { if (dc && dc.readyState === 'open') dc.send(JSON.stringify({ type: 'TRANSFER_PAUSE', id, paused: h.paused })); } catch (e) {}
+            applyPauseUI(h);
+        }
+        function handleRemotePause(id, paused) {
+            const h = BATCHES.get(id) || TRANSFERS.get(id);
+            if (!h) return;
+            setHolderPaused(h, paused);
+            applyPauseUI(h);
+        }
+        // sender side: hold still while paused
+        async function waitWhilePaused(h, xfer, dc) {
+            while (h.paused) {
+                await new Promise(res => setTimeout(res, 120));
+                if (xfer.cancelled) return 'cancelled';
+                if (dc.readyState !== 'open') return 'closed';
+            }
+            return 'ok';
+        }
+
         function transferStats(t) {
-            const elapsed = Math.max(0.001, (performance.now() - t.start) / 1000);
-            const speed = t.done / elapsed;
-            const eta = speed > 0 ? (t.size - t.done) / speed : Infinity;
+            const elapsed = holderElapsed(t);
+            const speed = elapsed ? t.done / elapsed : 0;
+            const eta = (speed > 0 && !t.paused) ? (t.size - t.done) / speed : Infinity;
             const pct = t.size ? Math.min(100, Math.floor(t.done / t.size * 100)) : 0;
             return { speed, eta, pct };
         }
@@ -4606,9 +4698,9 @@ if __name__ == "__main__":
             const { speed, pct } = transferStats(t);
             if (!t.card) return;
             const st = t.card.querySelector('.snap-status');
-            if (st) st.textContent = t.note || `${t.dir === 'out' ? 'Sending' : 'Receiving'}… ${pct}% · ${fmtBytes(Math.round(speed))}/s`;
+            if (st) st.textContent = t.paused ? `Paused · ${pct}%` : (t.note || `${t.dir === 'out' ? 'Sending' : 'Receiving'}… ${pct}% · ${fmtBytes(Math.round(speed))}/s`);
             const bar = t.card.querySelector('.xfer-bar');
-            if (bar) bar.style.width = pct + '%';
+            if (bar) { bar.style.width = pct + '%'; bar.classList.toggle('bg-amber-400', !!t.paused); bar.classList.toggle('bg-cyan-400', !t.paused); }
             if (xferDetailId === t.id) renderTransferDetail(t);
         }
 
@@ -4617,6 +4709,7 @@ if __name__ == "__main__":
             if (t && t.card) {
                 const bar = t.card.querySelector('.xfer-bar'); if (bar && bar.parentElement) bar.parentElement.remove();
                 const c = t.card.querySelector('.xfer-cancel'); if (c) c.remove();
+                const pz = t.card.querySelector('.xfer-pause'); if (pz) pz.remove();
             }
             TRANSFERS.delete(id);
             if (xferDetailId === id) closeTransferDetail();
@@ -4660,6 +4753,7 @@ if __name__ == "__main__":
             if (st) st.textContent = msg;
             const bar = t.card.querySelector('.xfer-bar'); if (bar && bar.parentElement) bar.parentElement.remove();
             const c = t.card.querySelector('.xfer-cancel'); if (c) c.remove();
+            const pz = t.card.querySelector('.xfer-pause'); if (pz) pz.remove();
             const o = t.card.querySelector('.xfer-open'); if (o) o.onclick = null;
             t.card.classList.add('opacity-60');
         }
@@ -4685,12 +4779,16 @@ if __name__ == "__main__":
                         <dt class="text-slate-400">Average speed</dt><dd id="xd-speed" class="text-right"></dd>
                         <dt class="text-slate-400">Estimated time left</dt><dd id="xd-eta" class="text-right"></dd>
                     </dl>
-                    <button type="button" id="xd-cancel" class="w-full min-h-[40px] rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-semibold">Cancel transfer</button>
+                    <div class="flex gap-2">
+                        <button type="button" id="xd-pause" class="flex-1 min-h-[40px] rounded-xl bg-slate-700 hover:bg-slate-600 text-white font-semibold flex items-center justify-center gap-1.5"></button>
+                        <button type="button" id="xd-cancel" class="flex-1 min-h-[40px] rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-semibold">Cancel transfer</button>
+                    </div>
                 </div>`;
             document.body.appendChild(m);
             m.addEventListener('click', e => { if (e.target === m) closeTransferDetail(); });
             m.querySelector('#xd-close').onclick = closeTransferDetail;
             m.querySelector('#xd-cancel').onclick = () => cancelTransfer(id);
+            m.querySelector('#xd-pause').onclick = () => togglePause(id);
             renderTransferDetail(t);
         }
 
@@ -4698,8 +4796,9 @@ if __name__ == "__main__":
             const m = document.getElementById('xfer-detail');
             if (!m) return;
             const { speed, eta, pct } = transferStats(t);
-            m.querySelector('#xd-title').textContent = (t.dir === 'out' ? 'Sending' : 'Receiving') + ' — ' + pct + '%';
+            m.querySelector('#xd-title').textContent = (t.paused ? 'Paused' : (t.dir === 'out' ? 'Sending' : 'Receiving')) + ' — ' + pct + '%';
             m.querySelector('#xd-bar').style.width = pct + '%';
+            m.querySelector('#xd-pause').innerHTML = t.paused ? '<i class="fa-solid fa-play"></i> Resume' : '<i class="fa-solid fa-pause"></i> Pause';
             m.querySelector('#xd-name').textContent = t.name;
             m.querySelector('#xd-size').textContent = fmtBytes(t.size);
             m.querySelector('#xd-done').textContent = fmtBytes(t.done);
