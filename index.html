@@ -963,6 +963,15 @@
                     <div class="text-[10px] text-slate-400 font-normal">Delete all displayed messages and Snaps</div>
                 </div>
             </button>
+
+            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 flex items-start gap-2.5 text-slate-400 select-text">
+                <i class="fa-solid fa-code-commit text-base w-5 text-center mt-0.5"></i>
+                <div class="min-w-0">
+                    <div class="text-[10px] uppercase tracking-wider text-slate-500 font-semibold">Versjon</div>
+                    <div class="font-mono text-[11px] text-slate-300">Commit <span id="build-commit">—</span></div>
+                    <div class="text-[11px]">Bygget <span id="build-time">—</span></div>
+                </div>
+            </div>
         </div>
 
         <!-- ONECHAT SETTINGS MODAL (TOP-RIGHT GEAR) -->
@@ -4316,6 +4325,22 @@ if __name__ == "__main__":
             const dc = APP_STATE.dataChannel;
             if (dc && dc.readyState === 'open') { e.preventDefault(); e.returnValue = ''; }
         });
+
+        /* ---------- Build info (stamped by .github/workflows/pages.yml) ---------- */
+        const BUILD_INFO = { commit: '__BUILD_COMMIT__', time: '__BUILD_TIME__' };
+        (function showBuildInfo() {
+            const cEl = document.getElementById('build-commit');
+            const tEl = document.getElementById('build-time');
+            if (!cEl || !tEl) return;
+            const stamped = !BUILD_INFO.commit.startsWith('__');
+            if (!stamped) { cEl.textContent = 'lokal versjon'; tEl.textContent = 'ikke bygget'; return; }
+            cEl.textContent = BUILD_INFO.commit.slice(0, 7);
+            cEl.title = BUILD_INFO.commit;
+            const d = new Date(BUILD_INFO.time);
+            tEl.textContent = isNaN(d) ? BUILD_INFO.time : new Intl.DateTimeFormat('nb-NO', {
+                dateStyle: 'long', timeStyle: 'short', timeZone: 'Europe/Oslo'
+            }).format(d);
+        })();
 
         /* ---------- Typing indicator ---------- */
         const TYPING = { sentAt: 0, active: false, stopTimer: null, peerTimer: null };
