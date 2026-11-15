@@ -4104,6 +4104,7 @@ if __name__ == "__main__":
                 if (st) st.textContent = (b.dir === 'out' ? `Sent ${nDone} of ${n} files` : `Received ${nDone} of ${n} files`) + tail;
                 const bar = b.card.querySelector('.xfer-bar'); if (bar && bar.parentElement) bar.parentElement.remove();
                 const c = b.card.querySelector('.xfer-cancel'); if (c) c.remove();
+                if (b.dir === 'in' && b.accepted) offerBatchZipSave(b);
                 if (b.dir === 'in' && nDone > 0) {
                     const z = document.createElement('button');
                     z.type = 'button';
@@ -4149,7 +4150,95 @@ if __name__ == "__main__":
         /* receiver side */
         function batchIncomingStart(m) {
             if (BATCHES.has(m.id) || !Array.isArray(m.files)) return;
-            createBatch('in', m.id, m.sender, m.files);
+            const b = createBatch('in', m.id, m.sender, m.files);
+            showBatchOfferDialog(b);
+        }
+
+        /* Receiver: dialog when several files are on their way - accept (optionally as one ZIP) or decline */
+        function showBatchOfferDialog(b) {
+            closeBatchDialog();
+            const total = b.files.reduce((a, f) => a + f.size, 0);
+            const m = document.createElement('div');
+            m.id = 'batch-dialog';
+            m.className = 'fixed inset-0 z-[310] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
+            m.innerHTML = `
+                <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-3 shadow-2xl text-xs text-slate-200">
+                    <div class="flex items-center gap-3">
+                        <span class="w-11 h-11 rounded-full bg-slate-800 text-yellow-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-copy"></i></span>
+                        <div class="min-w-0">
+                            <div class="font-bold text-sm text-white truncate" data-bd="title"></div>
+                            <div class="text-slate-400" data-bd="sub"></div>
+                        </div>
+                    </div>
+                    <ul class="max-h-32 overflow-y-auto space-y-0.5 text-[11px] text-slate-300 rounded-lg bg-slate-950/60 p-2" data-bd="files"></ul>
+                    <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/70 cursor-pointer">
+                        <input type="checkbox" data-bd="zip" checked class="mt-0.5 w-4 h-4 rounded border-slate-600 text-emerald-500 focus:ring-0">
+                        <span><span class="font-semibold text-white">Get everything in one ZIP</span><br><span class="text-slate-400" data-bd="zipsub"></span></span>
+                    </label>
+                    <div class="flex gap-2">
+                        <button type="button" data-bd="decline" class="flex-1 min-h-[42px] rounded-xl bg-rose-700 hover:bg-rose-600 text-white font-bold">Decline</button>
+                        <button type="button" data-bd="accept" class="flex-1 min-h-[42px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">Accept</button>
+                    </div>
+                </div>`;
+            m.querySelector('[data-bd="title"]').textContent = `${b.sender || getPeerRoleName()} is sending ${b.files.length} files`;
+            m.querySelector('[data-bd="sub"]').textContent = fmtBytes(total) + ' in total';
+            m.querySelector('[data-bd="zipsub"]').textContent = `One file to save instead of ${b.files.length} separate ones.`;
+            const ul = m.querySelector('[data-bd="files"]');
+            b.files.forEach(f => {
+                const li = document.createElement('li');
+                li.className = 'flex justify-between gap-2';
+                const n = document.createElement('span'); n.className = 'truncate'; n.textContent = f.name;
+                const z = document.createElement('span'); z.className = 'text-slate-500 shrink-0'; z.textContent = fmtBytes(f.size);
+                li.append(n, z); ul.appendChild(li);
+            });
+            document.body.appendChild(m);
+            m.querySelector('[data-bd="decline"]').onclick = () => { closeBatchDialog(); declineBatch(b.id); };
+            m.querySelector('[data-bd="accept"]').onclick = () => {
+                b.zip = m.querySelector('[data-bd="zip"]').checked;
+                b.accepted = true;
+                closeBatchDialog();
+                if (b.end) offerBatchZipSave(b);   // everything already arrived while the dialog was open
+            };
+        }
+        function closeBatchDialog() { const m = document.getElementById('batch-dialog'); if (m) m.remove(); }
+
+        function declineBatch(bid) {
+            const b = BATCHES.get(bid);
+            if (!b) return;
+            const dc = APP_STATE.dataChannel;
+            b.files.forEach(it => {
+                if (batchStateTerminal(it.state)) return;
+                it.state = 'cancelled'; it.cancelled = true;
+                try { if (dc && dc.readyState === 'open') dc.send(JSON.stringify({ type: 'FILE_CANCEL', id: it.id })); } catch (e) {}
+                if (incomingFileMeta && incomingFileMeta.id === it.id) { incomingFileMeta = null; incomingFileChunks = []; incomingBytesReceived = 0; }
+            });
+            b.accepted = false;
+            refreshBatch(b, true);
+        }
+
+        // ZIP mode: when the last file is in, ask to save (needs a tap, so the phone allows the save sheet)
+        function offerBatchZipSave(b) {
+            if (!b.zip || b.zipOffered || !b.files.some(f => f.state === 'done')) return;
+            b.zipOffered = true;
+            closeBatchDialog();
+            const m = document.createElement('div');
+            m.id = 'batch-dialog';
+            m.className = 'fixed inset-0 z-[310] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
+            const nDone = b.files.filter(f => f.state === 'done').length;
+            m.innerHTML = `
+                <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-3 shadow-2xl text-xs text-slate-200 text-center">
+                    <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl"><i class="fa-solid fa-file-zipper"></i></div>
+                    <div class="font-bold text-sm text-white" data-bd="title"></div>
+                    <div class="text-slate-400">Everything is packed into one ZIP.</div>
+                    <div class="flex gap-2">
+                        <button type="button" data-bd="later" class="flex-1 min-h-[42px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">Later</button>
+                        <button type="button" data-bd="save" class="flex-1 min-h-[42px] rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white font-bold">Save ZIP</button>
+                    </div>
+                </div>`;
+            m.querySelector('[data-bd="title"]').textContent = `${nDone} file${nDone > 1 ? 's' : ''} received`;
+            document.body.appendChild(m);
+            m.querySelector('[data-bd="later"]').onclick = closeBatchDialog;
+            m.querySelector('[data-bd="save"]').onclick = async () => { closeBatchDialog(); await downloadBatchZip(b.id); };
         }
 
         function batchIncomingFileStart(meta) {
@@ -4180,11 +4269,7 @@ if __name__ == "__main__":
             const b = BATCHES.get(bid);
             const it = b && b.files.find(f => f.id === fid);
             if (!it || !it.blob) return;
-            const url = URL.createObjectURL(it.blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = it.name;
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            saveBlobSafely(it.blob, it.name, it.mime);
         }
 
         /* sender side */
@@ -4346,11 +4431,7 @@ if __name__ == "__main__":
             });
             showToast('Building ZIP…', 'info');
             const zip = await buildZipBlob(entries);
-            const url = URL.createObjectURL(zip);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'OneChat-files-' + new Date().toISOString().slice(0, 10) + '.zip';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 60000);
+            await saveBlobSafely(zip, 'OneChat-files-' + new Date().toISOString().slice(0, 10) + '.zip', 'application/zip');
         }
 
         /* ---------- Drag & drop ---------- */
