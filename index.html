@@ -5947,7 +5947,7 @@ if __name__ == "__main__":
                     <input id="jm-link" readonly class="w-full min-h-[38px] bg-slate-950 border border-slate-700 rounded-lg px-3 font-mono text-[11px] text-cyan-200 truncate" value="Preparing…">
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" data-jm="share" class="min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-share-nodes"></i> Share</button>
-                        <button type="button" data-jm="image" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-image"></i> Copy image</button>
+                        <button type="button" data-jm="image" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-copy"></i> Copy both</button>
                         <button type="button" data-jm="link" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-link"></i> Copy link</button>
                     </div>
                 </div>`;
@@ -5987,13 +5987,15 @@ if __name__ == "__main__":
                     catch (err) { linkEl.focus(); linkEl.select(); showToast('Select the link and copy it', 'info'); }
                 } else if (act === 'image') {
                     try {
-                        // image plus the link: apps that accept rich content get a clickable image
-                        const html = `<a href="${link}"><img src="${qr.toDataURL('image/png')}" alt="Join me on OneChat"></a>`;
+                        // image AND link in one copy: rich editors paste both (clickable image + link),
+                        // plain-text fields get the link, image-only fields get the picture
+                        const html = `<a href="${link}"><img src="${qr.toDataURL('image/png')}" alt="Join me on OneChat"></a><br><a href="${link}">Join me on OneChat</a>`;
                         await navigator.clipboard.write([new ClipboardItem({
                             'image/png': blob,
                             'text/html': new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob(['Join me on OneChat: ' + link], { type: 'text/plain' }),
                         })]);
-                        showToast('Join image copied — paste it into any chat app', 'success');
+                        showToast('Image and link copied — paste into your message', 'success');
                     } catch (err) {
                         try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); showToast('Join image copied', 'success'); }
                         catch (err2) { saveBlobSafely(blob, 'onechat-join.png', 'image/png'); }
