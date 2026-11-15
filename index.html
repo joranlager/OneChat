@@ -4508,17 +4508,69 @@ if __name__ == "__main__":
         }
 
         function forgetConnection() {
-            if (!confirm('Forget this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
+            if (!confirm('Burn this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
             sendOneChatPayload({ type: 'ONECHAT_FORGET', sender: getRoleName(APP_STATE.role) });
+            burstIntoFlames();
             setTimeout(() => {
                 wipeConversationLocally();
-                showToast('Conversation forgotten and disconnected.', 'info');
+                showToast('Conversation burned and disconnected.', 'info');
             }, 250);
         }
 
         function handleIncomingForget(msg) {
             wipeConversationLocally();
-            showToast(`${(msg && msg.sender) || getPeerRoleName()} forgot the conversation — disconnected.`, 'info');
+            showToast(`${(msg && msg.sender) || getPeerRoleName()} burned the conversation — disconnected.`, 'info');
+        }
+
+        /* Full-screen fire for ~2 s (a short orange flash when reduced motion is preferred) */
+        function burstIntoFlames() {
+            const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            const cv = document.createElement('canvas');
+            cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:300;pointer-events:none;transition:opacity .5s';
+            document.body.appendChild(cv);
+            const dpr = Math.min(2, window.devicePixelRatio || 1);
+            const W = cv.width = Math.round(innerWidth * dpr), H = cv.height = Math.round(innerHeight * dpr);
+            const ctx = cv.getContext('2d');
+            if (reduce) {
+                ctx.fillStyle = 'rgba(255,110,20,0.55)'; ctx.fillRect(0, 0, W, H);
+                setTimeout(() => { cv.style.opacity = '0'; setTimeout(() => cv.remove(), 500); }, 400);
+                return;
+            }
+            const parts = [];
+            const DURATION = 2000, start = performance.now();
+            const spawn = (n, t) => {
+                for (let i = 0; i < n; i++) {
+                    parts.push({
+                        x: Math.random() * W, y: H + Math.random() * 40 * dpr,
+                        vx: (Math.random() - 0.5) * 1.5 * dpr, vy: -(4 + Math.random() * 9) * dpr * (1 + t),
+                        r: (18 + Math.random() * 46) * dpr, life: 1, decay: 0.012 + Math.random() * 0.018
+                    });
+                }
+            };
+            function frame(now) {
+                const t = Math.min(1, (now - start) / DURATION);
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = `rgba(20,4,0,${0.35 * (1 - t) + 0.1})`;
+                ctx.fillRect(0, 0, W, H);
+                if (t < 0.8) spawn(Math.round((W / dpr) / 9), t);
+                ctx.globalCompositeOperation = 'lighter';
+                for (let i = parts.length - 1; i >= 0; i--) {
+                    const p = parts[i];
+                    p.x += p.vx + Math.sin((p.y + now * 0.3) / (40 * dpr)) * dpr;
+                    p.y += p.vy; p.life -= p.decay; p.r *= 0.985;
+                    if (p.life <= 0 || p.r < 1) { parts.splice(i, 1); continue; }
+                    const g = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r);
+                    g.addColorStop(0, `rgba(255,240,170,${0.9 * p.life})`);
+                    g.addColorStop(0.35, `rgba(255,140,30,${0.6 * p.life})`);
+                    g.addColorStop(1, 'rgba(200,30,0,0)');
+                    ctx.fillStyle = g;
+                    ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, Math.PI * 2); ctx.fill();
+                }
+                if (t < 1 || parts.length) requestAnimationFrame(frame);
+                else cv.remove();
+                if (t >= 1 && !cv.dataset.fading) { cv.dataset.fading = '1'; cv.style.opacity = '0'; setTimeout(() => cv.remove(), 600); }
+            }
+            requestAnimationFrame(frame);
         }
 
         /* ---------- Link health: heartbeat, loss detection, notification ---------- */
@@ -5321,9 +5373,9 @@ if __name__ == "__main__":
             const connIcon = basicEl('basic-tab-connect-icon');
             const connLabel = basicEl('basic-tab-connect-label');
             if (connected) {
-                connTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-rose-300 hover:bg-rose-950/60';
-                connIcon.className = 'fa-solid fa-link-slash';
-                connLabel.textContent = 'Forget';
+                connTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-orange-300 hover:bg-orange-950/60';
+                connIcon.className = 'fa-solid fa-fire text-orange-400';
+                connLabel.textContent = 'Burn';
             } else {
                 connTab.className = BASIC.tab === 'connect'
                     ? 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow'
