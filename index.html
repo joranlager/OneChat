@@ -231,7 +231,7 @@
                         </button>
                     </div>
                     <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 cursor-pointer">
-                        <input id="basic-use-stun" type="checkbox" class="mt-0.5 w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
+                        <input id="basic-use-stun" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
                         <span><strong class="text-white">Connect across the internet</strong> — uses a public STUN server (stun.l.google.com) to discover your public address. Leave this off for devices on the same network; nothing then leaves your devices. The joining side switches this on automatically when the Offer needs it.</span>
                     </label>
                 </section>
@@ -1020,7 +1020,7 @@
         <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden w-full h-full">
 
             <!-- LEFT / TOP STAGE: SNAP CAMERA & SWAPPABLE P2P VIDEO CALL -->
-            <div id="onechat-media-stage" class="lg:col-span-8 relative bg-black flex flex-col items-center justify-center overflow-hidden h-full min-h-[54dvh]">
+            <div id="onechat-media-stage" class="hidden lg:col-span-8 relative bg-black flex flex-col items-center justify-center overflow-hidden h-full min-h-[54dvh]">
 
                 <!-- REMOTE PEER CONTAINER (Large by default during call, or PiP when swapped!) -->
                 <div id="onechat-remote-container" onclick="onVideoContainerClick('remote')" class="absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden transition-all duration-300">
@@ -1096,13 +1096,6 @@
                         <i id="icon-onechat-cam" class="fa-solid fa-video text-xs"></i>
                     </button>
 
-                    <!-- Big Yellow Snapchat Shutter Button (Takes & Sends Instant Snap!) -->
-                    <button onclick="captureAndSendSnap()" class="w-16 h-16 rounded-full border-4 border-yellow-400 bg-yellow-400/20 hover:bg-yellow-400/40 active:scale-90 transition flex items-center justify-center shadow-xl" title="Capture and send Snap">
-                        <div class="w-12 h-12 rounded-full bg-yellow-400 flex items-center justify-center text-slate-950 font-black text-lg">
-                            <i class="fa-solid fa-camera"></i>
-                        </div>
-                    </button>
-
                     <!-- Swap PiP Quick Button -->
                     <button onclick="swapOneChatPipView()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-cyan-300 flex items-center justify-center transition" title="Switch between your camera and the peer's video">
                         <i class="fa-solid fa-right-left text-xs"></i>
@@ -1116,7 +1109,7 @@
             </div>
 
             <!-- RIGHT / BOTTOM STAGE: SNAPCHAT CONVERSATION FEED -->
-            <div class="lg:col-span-4 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden pt-0 lg:pt-16">
+            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden pt-0 lg:pt-16">
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                     <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
@@ -1138,7 +1131,7 @@
 
                 <!-- Snapchat Pill Input Bar -->
                 <form onsubmit="handleOneChatSubmit(event)" class="p-2.5 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
-                    <button type="button" onclick="captureAndSendSnap()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Send Picture Snap">
+                    <button type="button" onclick="openSnapCamera()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Take a picture Snap">
                         <i class="fa-solid fa-camera text-xs"></i>
                     </button>
                     <input id="onechat-input" type="text" placeholder="Send a chat to the peer..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
@@ -1152,16 +1145,52 @@
     </section>
 
     <!-- MODAL FOR VIEWING FULLSCREEN EPHEMERAL SNAP -->
-    <div id="snap-viewer-modal" onclick="closeSnapViewer()" class="hidden fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4 cursor-pointer">
+    <div id="snap-viewer-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
         <div class="absolute top-4 right-4 flex items-center gap-2">
+            <span class="text-xs text-slate-300 font-mono">Closes in</span>
             <span id="snap-viewer-timer" class="w-9 h-9 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-sm flex items-center justify-center">10</span>
-            <span class="text-xs text-slate-300 font-mono">Tap anywhere to close</span>
         </div>
-        <img id="snap-viewer-img" src="" alt="Snap" class="max-w-full max-h-[82dvh] rounded-2xl border border-yellow-400/40 shadow-2xl object-contain">
+        <img id="snap-viewer-img" src="" alt="Snap" class="max-w-full max-h-[70dvh] rounded-2xl border border-yellow-400/40 shadow-2xl object-contain">
         <div id="snap-viewer-caption" class="mt-3 px-4 py-2 rounded-xl bg-black/80 text-white font-bold text-sm text-center"></div>
+        <div class="mt-4 flex items-center gap-3 text-2xl">
+            <button onclick="sendSnapReaction(null,'❤️')" class="hover:scale-125 transition">❤️</button>
+            <button onclick="sendSnapReaction(null,'😂')" class="hover:scale-125 transition">😂</button>
+            <button onclick="sendSnapReaction(null,'😮')" class="hover:scale-125 transition">😮</button>
+            <button onclick="sendSnapReaction(null,'👍')" class="hover:scale-125 transition">👍</button>
+            <button onclick="sendSnapReaction(null,'🔥')" class="hover:scale-125 transition">🔥</button>
+        </div>
+        <div class="mt-4 flex items-center gap-3">
+            <button onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
+            <button onclick="closeSnapViewer()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-xmark"></i> Close</button>
+        </div>
     </div>
 
-    <!-- ================= MODAL 1: PYTHON RAW UDP HOLE PUNCHING & WEBSOCKET BRIDGE SCRIPT ================= -->
+    <!-- MODAL FOR TAKING AN EPHEMERAL SNAP (camera runs only while this is open) -->
+    <div id="snap-cam-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
+        <video id="snap-cam-video" class="max-w-full max-h-[68dvh] rounded-2xl border border-yellow-400/40 bg-slate-950 object-cover" playsinline autoplay muted></video>
+        <input id="snap-cam-caption" type="text" placeholder="Add a caption (optional)" class="mt-3 w-full max-w-sm bg-slate-900 border border-slate-700 rounded-full px-4 py-2 text-center text-white text-sm focus:outline-none focus:border-yellow-400">
+        <div class="mt-4 flex items-center gap-4">
+            <button onclick="closeSnapCamera()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">Cancel</button>
+            <button onclick="captureAndSendSnap()" class="w-16 h-16 rounded-full border-4 border-yellow-400 bg-yellow-400 text-slate-950 text-lg flex items-center justify-center active:scale-90 transition" title="Capture and send"><i class="fa-solid fa-camera"></i></button>
+        </div>
+    </div>
+
+    <!-- MODAL FOR INCOMING / OUTGOING CALL -->
+    <div id="onechat-call-modal" class="hidden fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-white/15 p-6 text-center space-y-4 shadow-2xl">
+            <div class="w-16 h-16 mx-auto rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl animate-pulse"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></div>
+            <div>
+                <div id="onechat-call-modal-title" class="text-white font-extrabold text-base">Incoming call</div>
+                <div id="onechat-call-modal-sub" class="text-xs text-slate-400 mt-1"></div>
+            </div>
+            <div class="flex items-center justify-center gap-4">
+                <button id="onechat-call-modal-decline" onclick="declineOneChatCall()" class="px-5 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone-slash"></i> <span>Decline</span></button>
+                <button id="onechat-call-modal-accept" onclick="acceptOneChatCall()" class="px-5 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Accept</button>
+            </div>
+        </div>
+    </div>
+
+<!-- ================= MODAL 1: PYTHON RAW UDP HOLE PUNCHING & WEBSOCKET BRIDGE SCRIPT ================= -->
     <div id="python-modal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
         <div class="w-full max-w-3xl rounded-2xl hud-glass border border-amber-500/40 overflow-hidden flex flex-col max-h-[88dvh]">
             <div class="px-4 py-3 sm:px-5 sm:py-3.5 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
@@ -1633,11 +1662,13 @@
                         mediaStream = APP_STATE.inboundMediaStream;
                     }
                     remoteVideo.srcObject = mediaStream;
-                    remoteVideo.classList.remove('hidden');
                     remoteVideo.play().catch(() => {});
-                    if (remoteImg) remoteImg.classList.add('hidden');
-                    if (simCanvas) simCanvas.classList.add('hidden');
-                    ONECHAT_STATE.hasRealRemoteTrack = true;
+                    if (event.track.kind === 'video') {
+                        remoteVideo.classList.remove('hidden');
+                        if (remoteImg) remoteImg.classList.add('hidden');
+                        if (simCanvas) simCanvas.classList.add('hidden');
+                        ONECHAT_STATE.hasRealRemoteTrack = true;
+                    }
                     showToast(`Receiving direct WebRTC video stream from ${getPeerRoleName()}!`, 'success');
                 }
             };
@@ -2876,7 +2907,9 @@ if __name__ == "__main__":
                     } else if (parsed.type === 'ONECHAT_MSG') {
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
                     } else if (parsed.type === 'ONECHAT_SNAP') {
-                        appendOneChatSnap(parsed.sender || getPeerRoleName(), parsed.image, parsed.caption, false);
+                        appendOneChatSnap(parsed.sender || getPeerRoleName(), parsed.image, parsed.caption, false, parsed.id);
+                    } else if (parsed.type === 'ONECHAT_SNAP_REACT') {
+                        handleIncomingSnapReaction(parsed);
                     } else if (parsed.type === 'ONECHAT_CALL_SIGNAL') {
                         handleIncomingOneChatCallSignal(parsed);
                     } else if (parsed.type === 'ONECHAT_VIDEO_FRAME') {
@@ -2943,7 +2976,10 @@ if __name__ == "__main__":
             callTimerInterval: null,
             videoStreamInterval: null,
             simAnimFrame: null,
-            snapViewerInterval: null
+            snapViewerInterval: null,
+            callPhase: 'idle',
+            pendingVideo: true,
+            ringTimeout: null
         };
 
         function toggleOneChatHamburgerMenu() {
@@ -3001,10 +3037,28 @@ if __name__ == "__main__":
             const pipClasses = 'absolute bottom-20 right-4 w-28 h-40 sm:w-36 sm:h-52 rounded-2xl border-2 border-yellow-400 shadow-2xl overflow-hidden z-30 transition-all duration-300 bg-slate-950 cursor-pointer hover:scale-105';
             const fullClasses = 'absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden z-10 transition-all duration-300 bg-black';
 
+            const stage = document.getElementById('onechat-media-stage');
+            const feedCol = document.getElementById('onechat-feed-col');
+            if (stage) stage.classList.toggle('hidden', !ONECHAT_STATE.inCall);
+            if (feedCol) {
+                feedCol.classList.toggle('lg:col-span-12', !ONECHAT_STATE.inCall);
+                feedCol.classList.toggle('lg:col-span-4', ONECHAT_STATE.inCall);
+            }
+
             if (!ONECHAT_STATE.inCall) {
-                // Before call: local camera is full stage so user can compose Snaps, remote is behind
+                // No call: stage hidden, chat only
                 localContainer.className = fullClasses;
                 remoteContainer.className = 'hidden';
+                if (swapBadge) swapBadge.classList.add('hidden');
+                if (localLabel) localLabel.classList.add('hidden');
+                if (swapBtn) swapBtn.classList.add('hidden');
+                return;
+            }
+
+            if (!ONECHAT_STATE.isVideoCall) {
+                // Audio call: no camera windows, only the peer avatar stage
+                remoteContainer.className = fullClasses;
+                localContainer.className = 'hidden';
                 if (swapBadge) swapBadge.classList.add('hidden');
                 if (localLabel) localLabel.classList.add('hidden');
                 if (swapBtn) swapBtn.classList.add('hidden');
@@ -3128,7 +3182,6 @@ if __name__ == "__main__":
             const overlay = document.getElementById('onechat-overlay');
             if (overlay) overlay.classList.remove('hidden');
 
-            await ensureOneChatCameraStarted();
             applyOneChatVideoPipLayout();
             startSimulatedRemoteCanvasLoop();
         }
@@ -3165,36 +3218,61 @@ if __name__ == "__main__":
             showToast('Hole punched! OneGiver and OneReceiver are now connected in OneChat.', 'success');
         }
 
-        async function ensureOneChatCameraStarted() {
-            const localVideo = document.getElementById('onechat-local-video');
-            if (ONECHAT_STATE.localStream) {
-                localVideo.srcObject = ONECHAT_STATE.localStream;
-                return;
-            }
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
-
+        // Camera/mic are only opened for an accepted call (or briefly while taking a Snap)
+        async function startOneChatMedia(withVideo) {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return false;
+            stopOneChatMedia();
             try {
                 const stream = await navigator.mediaDevices.getUserMedia({
-                    video: { facingMode: ONECHAT_STATE.facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                    video: withVideo ? { facingMode: ONECHAT_STATE.facingMode, width: { ideal: 640 }, height: { ideal: 480 } } : false,
                     audio: true
                 });
                 ONECHAT_STATE.localStream = stream;
+                const localVideo = document.getElementById('onechat-local-video');
                 localVideo.srcObject = stream;
-                await localVideo.play();
+                if (withVideo) localVideo.play().catch(() => {});
+                return true;
             } catch (err) {
-                // Fallback if webcam permission is denied or unavailable: local video stays hidden and synthetic Snap generator is used
-                document.getElementById('onechat-stage-status').textContent = 'Synthetic P2P Camera Active';
+                showToast('Could not access the microphone/camera', 'error');
+                return false;
             }
         }
 
-        async function flipOneChatCamera() {
-            ONECHAT_STATE.facingMode = ONECHAT_STATE.facingMode === 'user' ? 'environment' : 'user';
-            if (ONECHAT_STATE.localStream) {
-                ONECHAT_STATE.localStream.getTracks().forEach(t => t.stop());
-                ONECHAT_STATE.localStream = null;
+        function stopOneChatMedia() {
+            const stream = ONECHAT_STATE.localStream;
+            const pc = APP_STATE.rtcPeer;
+            if (stream) {
+                const ids = stream.getTracks().map(t => t.id);
+                if (pc) {
+                    try {
+                        pc.getSenders().forEach(s => { if (s.track && ids.includes(s.track.id)) pc.removeTrack(s); });
+                    } catch (e) {}
+                }
+                stream.getTracks().forEach(t => t.stop());
             }
-            await ensureOneChatCameraStarted();
-            showToast('Camera direction switched in OneChat', 'info');
+            ONECHAT_STATE.localStream = null;
+            const localVideo = document.getElementById('onechat-local-video');
+            if (localVideo) localVideo.srcObject = null;
+        }
+
+        function clearOneChatRemoteMedia() {
+            const remoteVideo = document.getElementById('onechat-remote-video');
+            const remoteImg = document.getElementById('onechat-remote-stream-img');
+            const simCanvas = document.getElementById('onechat-sim-remote-canvas');
+            if (remoteVideo) { remoteVideo.srcObject = null; remoteVideo.classList.add('hidden'); }
+            if (remoteImg) { remoteImg.src = ''; remoteImg.classList.add('hidden'); }
+            if (simCanvas) simCanvas.classList.remove('hidden');
+            APP_STATE.inboundMediaStream = null;
+            ONECHAT_STATE.hasRealRemoteTrack = false;
+        }
+
+        async function flipOneChatCamera() {
+            if (!ONECHAT_STATE.inCall || !ONECHAT_STATE.isVideoCall) return;
+            ONECHAT_STATE.facingMode = ONECHAT_STATE.facingMode === 'user' ? 'environment' : 'user';
+            if (await startOneChatMedia(true)) {
+                await renegotiateWebRTCVideoTracks();
+                showToast('Camera direction switched', 'info');
+            }
         }
 
         function cycleOneChatFilter() {
@@ -3304,7 +3382,6 @@ if __name__ == "__main__":
             if (!pc || !msg.sdp) return;
             try {
                 if (msg.sdpType === 'offer') {
-                    await ensureOneChatCameraStarted();
                     if (ONECHAT_STATE.localStream) {
                         const existingSenders = pc.getSenders();
                         ONECHAT_STATE.localStream.getTracks().forEach(track => {
@@ -3377,25 +3454,102 @@ if __name__ == "__main__":
             }
         }
 
+        function peerChannelOpen() {
+            return !!((APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') ||
+                (APP_STATE.wsBridge && APP_STATE.wsBridge.readyState === WebSocket.OPEN));
+        }
+
+        function showCallModal(mode, withVideo) {
+            // mode: 'incoming' | 'outgoing'
+            const kind = withVideo ? 'video call' : 'audio call';
+            document.getElementById('onechat-call-modal-icon').className = withVideo ? 'fa-solid fa-video' : 'fa-solid fa-phone';
+            document.getElementById('onechat-call-modal-title').textContent = mode === 'incoming'
+                ? `Incoming ${kind}` : `Calling ${getPeerRoleName()}…`;
+            document.getElementById('onechat-call-modal-sub').textContent = mode === 'incoming'
+                ? `${getPeerRoleName()} wants to start a ${kind}` : `Waiting for ${getPeerRoleName()} to accept the ${kind}`;
+            document.getElementById('onechat-call-modal-accept').classList.toggle('hidden', mode !== 'incoming');
+            document.querySelector('#onechat-call-modal-decline span').textContent = mode === 'incoming' ? 'Decline' : 'Cancel';
+            document.getElementById('onechat-call-modal').classList.remove('hidden');
+        }
+
+        function hideCallModal() {
+            document.getElementById('onechat-call-modal').classList.add('hidden');
+            if (ONECHAT_STATE.ringTimeout) { clearTimeout(ONECHAT_STATE.ringTimeout); ONECHAT_STATE.ringTimeout = null; }
+        }
+
+        // Caller: ring the other party first. Nothing is opened until they accept.
         async function startOneChatCall(withVideo = true) {
+            if (ONECHAT_STATE.callPhase !== 'idle') return;
             if (!APP_STATE.isTunnelActive) {
                 quickConnectForOneChat();
             }
-            ONECHAT_STATE.inCall = true;
             ONECHAT_STATE.isVideoCall = withVideo;
-            // Default when starting video call: Own camera is small PiP in corner, Peer video is large!
-            ONECHAT_STATE.localIsSmallPip = true;
+            if (!peerChannelOpen()) {
+                // Simulator mode without a real peer: start locally
+                await beginOneChatCallSession(withVideo);
+                return;
+            }
+            ONECHAT_STATE.callPhase = 'ringing-out';
+            showCallModal('outgoing', withVideo);
+            sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'START', withVideo, sender: getRoleName(APP_STATE.role) });
+            ONECHAT_STATE.ringTimeout = setTimeout(() => {
+                if (ONECHAT_STATE.callPhase === 'ringing-out') {
+                    sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) });
+                    ONECHAT_STATE.callPhase = 'idle';
+                    hideCallModal();
+                    appendOneChatEntry('SYSTEM', `${getPeerRoleName()} did not answer.`, true, 'call');
+                }
+            }, 30000);
+        }
 
-            await ensureOneChatCameraStarted();
+        // Callee pressed Accept
+        async function acceptOneChatCall() {
+            if (ONECHAT_STATE.callPhase !== 'ringing-in') return;
+            const withVideo = ONECHAT_STATE.pendingVideo;
+            hideCallModal();
+            ONECHAT_STATE.callPhase = 'idle';
+            const ok = await beginOneChatCallSession(withVideo);
+            sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: ok ? 'ACCEPT' : 'DECLINE', sender: getRoleName(APP_STATE.role) });
+        }
+
+        // Callee pressed Decline, or caller pressed Cancel while ringing
+        function declineOneChatCall() {
+            const phase = ONECHAT_STATE.callPhase;
+            hideCallModal();
+            ONECHAT_STATE.callPhase = 'idle';
+            if (phase === 'ringing-in') {
+                sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'DECLINE', sender: getRoleName(APP_STATE.role) });
+                appendOneChatEntry('SYSTEM', `You declined the call from ${getPeerRoleName()}.`, true, 'call');
+            } else if (phase === 'ringing-out') {
+                sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) });
+                appendOneChatEntry('SYSTEM', `You cancelled the call.`, true, 'call');
+            }
+        }
+
+        // Opens mic/camera and the call UI. Returns false if media could not be opened.
+        async function beginOneChatCallSession(withVideo) {
+            ONECHAT_STATE.isVideoCall = withVideo;
+            ONECHAT_STATE.localIsSmallPip = true;
+            ONECHAT_STATE.isMuted = false;
+            ONECHAT_STATE.isCameraOff = false;
+            document.getElementById('icon-onechat-mute').className = 'fa-solid fa-microphone text-xs text-white';
+            document.getElementById('icon-onechat-cam').className = 'fa-solid fa-video text-xs text-white';
+
+            const ok = await startOneChatMedia(withVideo);
+            if (!ok && peerChannelOpen()) return false;
+
+            ONECHAT_STATE.inCall = true;
+            ONECHAT_STATE.callPhase = 'active';
             applyOneChatVideoPipLayout();
 
             document.getElementById('btn-onechat-hangup').classList.remove('hidden');
             document.getElementById('onechat-call-timer').classList.remove('hidden');
             document.getElementById('onechat-stage-status').textContent = withVideo
-                ? `P2P Video Call (${getPeerRoleName()} shown large)`
+                ? `P2P Video Call with ${getPeerRoleName()}`
                 : `P2P Audio Call with ${getPeerRoleName()}`;
 
             ONECHAT_STATE.callStartTime = Date.now();
+            document.getElementById('onechat-call-timer').textContent = '00:00';
             if (ONECHAT_STATE.callTimerInterval) clearInterval(ONECHAT_STATE.callTimerInterval);
             ONECHAT_STATE.callTimerInterval = setInterval(() => {
                 const sec = Math.floor((Date.now() - ONECHAT_STATE.callStartTime) / 1000);
@@ -3404,30 +3558,17 @@ if __name__ == "__main__":
                 document.getElementById('onechat-call-timer').textContent = `${mm}:${ss}`;
             }, 1000);
 
-            // 1. Renegotiate native WebRTC RTP media tracks over the open P2P DataChannel
-            await renegotiateWebRTCVideoTracks();
-
-            // 2. Also start real-time P2P DataChannel frame streaming so video is guaranteed to reach peer!
-            if (withVideo) {
-                startP2PVideoFrameStreamer();
-            }
-
-            // Send call signal over P2P channel & 3D stream burst
-            sendOneChatPayload({
-                type: 'ONECHAT_CALL_SIGNAL',
-                action: 'START',
-                withVideo,
-                sender: getRoleName(APP_STATE.role)
-            });
-
-            appendOneChatEntry('SYSTEM', `📹 ${getRoleName(APP_STATE.role)} started a direct P2P ${withVideo ? 'video call' : 'audio call'}`, true, 'call');
+            if (withVideo) startP2PVideoFrameStreamer();
+            appendOneChatEntry('SYSTEM', `📞 ${withVideo ? 'Video' : 'Audio'} call started`, true, 'call');
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.25);
-            spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.25);
-            showToast(`Video call started! Your own camera is now small — tap it to swap.`, 'success');
+            return true;
         }
 
-        function endOneChatCall() {
+        function endOneChatCall(fromRemote = false) {
+            const wasActive = ONECHAT_STATE.inCall;
             ONECHAT_STATE.inCall = false;
+            ONECHAT_STATE.callPhase = 'idle';
+            hideCallModal();
             if (ONECHAT_STATE.callTimerInterval) {
                 clearInterval(ONECHAT_STATE.callTimerInterval);
                 ONECHAT_STATE.callTimerInterval = null;
@@ -3436,38 +3577,67 @@ if __name__ == "__main__":
                 clearInterval(ONECHAT_STATE.videoStreamInterval);
                 ONECHAT_STATE.videoStreamInterval = null;
             }
+            // Close camera and microphone, and drop the peer's stream
+            stopOneChatMedia();
+            clearOneChatRemoteMedia();
+
             document.getElementById('btn-onechat-hangup').classList.add('hidden');
             document.getElementById('onechat-call-timer').classList.add('hidden');
-            document.getElementById('onechat-stage-status').textContent = 'Snap Camera Ready';
-
+            document.getElementById('onechat-stage-status').textContent = 'Call ended';
             applyOneChatVideoPipLayout();
 
-            sendOneChatPayload({
-                type: 'ONECHAT_CALL_SIGNAL',
-                action: 'END',
-                sender: getRoleName(APP_STATE.role)
-            });
-            appendOneChatEntry('SYSTEM', `The call between OneGiver and OneReceiver ended.`, true, 'call');
-            showToast('Videosamtale avsluttet.', 'info');
+            if (!fromRemote) {
+                sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) });
+            }
+            if (wasActive) {
+                appendOneChatEntry('SYSTEM', `The call ended.`, true, 'call');
+                showToast('Call ended', 'info');
+            }
         }
 
         async function handleIncomingOneChatCallSignal(sig) {
+            const who = sig.sender || getPeerRoleName();
             if (sig.action === 'START') {
-                appendOneChatEntry(sig.sender || getPeerRoleName(), `📹 Started a direct P2P ${sig.withVideo ? 'video call' : 'audio call'}!`, false, 'call');
-                showToast(`${sig.sender || getPeerRoleName()} is calling you directly on OneChat!`, 'success');
-                if (!ONECHAT_STATE.inCall) {
-                    ONECHAT_STATE.inCall = true;
-                    ONECHAT_STATE.isVideoCall = sig.withVideo;
-                    ONECHAT_STATE.localIsSmallPip = true;
-                    await ensureOneChatCameraStarted();
-                    applyOneChatVideoPipLayout();
-                    document.getElementById('btn-onechat-hangup').classList.remove('hidden');
-                    document.getElementById('onechat-call-timer').classList.remove('hidden');
-                    ONECHAT_STATE.callStartTime = Date.now();
-                    if (sig.withVideo) startP2PVideoFrameStreamer();
+                if (ONECHAT_STATE.callPhase !== 'idle') {
+                    sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'DECLINE', sender: getRoleName(APP_STATE.role) });
+                    return;
+                }
+                ONECHAT_STATE.callPhase = 'ringing-in';
+                ONECHAT_STATE.pendingVideo = !!sig.withVideo;
+                showCallModal('incoming', !!sig.withVideo);
+                appendOneChatEntry(who, `📞 Is calling you (${sig.withVideo ? 'video' : 'audio'})`, false, 'call');
+                ONECHAT_STATE.ringTimeout = setTimeout(() => {
+                    if (ONECHAT_STATE.callPhase === 'ringing-in') {
+                        ONECHAT_STATE.callPhase = 'idle';
+                        hideCallModal();
+                    }
+                }, 35000);
+            } else if (sig.action === 'ACCEPT') {
+                if (ONECHAT_STATE.callPhase !== 'ringing-out') return;
+                hideCallModal();
+                const ok = await beginOneChatCallSession(ONECHAT_STATE.isVideoCall);
+                if (!ok) {
+                    sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) });
+                    ONECHAT_STATE.callPhase = 'idle';
+                    return;
+                }
+                await renegotiateWebRTCVideoTracks();
+            } else if (sig.action === 'DECLINE') {
+                if (ONECHAT_STATE.callPhase === 'ringing-out') {
+                    hideCallModal();
+                    ONECHAT_STATE.callPhase = 'idle';
+                    appendOneChatEntry('SYSTEM', `${who} declined the call.`, false, 'call');
+                    showToast(`${who} declined the call`, 'info');
                 }
             } else if (sig.action === 'END') {
-                if (ONECHAT_STATE.inCall) endOneChatCall();
+                if (ONECHAT_STATE.callPhase === 'ringing-in' || ONECHAT_STATE.callPhase === 'ringing-out') {
+                    const missed = ONECHAT_STATE.callPhase === 'ringing-in';
+                    hideCallModal();
+                    ONECHAT_STATE.callPhase = 'idle';
+                    if (missed) appendOneChatEntry('SYSTEM', `Missed call from ${who}.`, false, 'call');
+                } else if (ONECHAT_STATE.inCall) {
+                    endOneChatCall(true);
+                }
             }
         }
 
@@ -3498,29 +3668,73 @@ if __name__ == "__main__":
                 : 'fa-solid fa-video text-xs text-white';
         }
 
+        const SNAP_STORE = new Map();   // id -> { img, caption, sender }
+        const SNAP_CARDS = new Map();   // id -> card element
+        const SNAP_CAM = { stream: null, ownsStream: false, simulated: false };
+        let currentSnapId = null;
+
+        function escHtml(t) {
+            return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+        }
+
+        // Open the snap camera. The camera runs only while this view is open.
+        async function openSnapCamera() {
+            if (!APP_STATE.isTunnelActive) {
+                showToast('Connect with the other person first', 'info');
+                return;
+            }
+            const vid = document.getElementById('snap-cam-video');
+            document.getElementById('snap-cam-modal').classList.remove('hidden');
+            document.getElementById('snap-cam-caption').value = '';
+            SNAP_CAM.simulated = false;
+            const callStream = ONECHAT_STATE.localStream;
+            if (callStream && callStream.getVideoTracks().some(t => t.readyState === 'live')) {
+                SNAP_CAM.stream = callStream;
+                SNAP_CAM.ownsStream = false;
+            } else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+                try {
+                    SNAP_CAM.stream = await navigator.mediaDevices.getUserMedia({
+                        video: { facingMode: ONECHAT_STATE.facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                        audio: false
+                    });
+                    SNAP_CAM.ownsStream = true;
+                } catch (e) {
+                    SNAP_CAM.stream = null;
+                    SNAP_CAM.simulated = true;
+                    showToast('No camera available — sending a generated picture', 'info');
+                }
+            } else {
+                SNAP_CAM.simulated = true;
+            }
+            vid.srcObject = SNAP_CAM.stream;
+            if (SNAP_CAM.stream) vid.play().catch(() => {});
+        }
+
+        function closeSnapCamera() {
+            if (SNAP_CAM.stream && SNAP_CAM.ownsStream) SNAP_CAM.stream.getTracks().forEach(t => t.stop());
+            SNAP_CAM.stream = null;
+            SNAP_CAM.ownsStream = false;
+            const vid = document.getElementById('snap-cam-video');
+            if (vid) vid.srcObject = null;
+            document.getElementById('snap-cam-modal').classList.add('hidden');
+        }
+
         function captureAndSendSnap() {
-            const video = document.getElementById('onechat-local-video');
+            const video = document.getElementById('snap-cam-video');
             const snapCanvas = document.getElementById('onechat-snap-canvas');
-            const captionInput = document.getElementById('onechat-snap-caption');
-            const caption = captionInput.value.trim() || `Snap from ${getRoleName(APP_STATE.role)} ⚡`;
+            const caption = document.getElementById('snap-cam-caption').value.trim();
 
             snapCanvas.width = 480;
             snapCanvas.height = 360;
             const ctx = snapCanvas.getContext('2d');
 
-            const filterCss = ONECHAT_STATE.filters[ONECHAT_STATE.filterIndex].css;
-            ctx.filter = filterCss;
-
-            if (ONECHAT_STATE.localStream && video.readyState >= 2 && !ONECHAT_STATE.isCameraOff) {
+            if (SNAP_CAM.stream && video.readyState >= 2) {
                 ctx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
             } else {
-                // Copy from cyber simulated canvas if user has no physical camera
                 const simCanvas = document.getElementById('onechat-sim-remote-canvas');
                 ctx.drawImage(simCanvas, 0, 0, snapCanvas.width, snapCanvas.height);
             }
-            ctx.filter = 'none';
 
-            // Draw classic Snapchat translucent black caption bar across middle
             if (caption) {
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
                 ctx.fillRect(0, snapCanvas.height * 0.68, snapCanvas.width, 40);
@@ -3530,93 +3744,88 @@ if __name__ == "__main__":
                 ctx.fillText(caption, snapCanvas.width / 2, snapCanvas.height * 0.68 + 25);
             }
 
-            // Stamp sender role in top-left
-            ctx.fillStyle = '#facc15';
-            ctx.font = 'bold 12px JetBrains Mono, monospace';
-            ctx.textAlign = 'left';
-            ctx.fillText(`👻 ${getRoleName(APP_STATE.role)} • P2P SNAP`, 14, 24);
-
             const dataUrl = snapCanvas.toDataURL('image/jpeg', 0.72);
-            captionInput.value = '';
-            document.getElementById('onechat-caption-overlay').classList.add('hidden');
+            const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            closeSnapCamera();
 
-            appendOneChatSnap(getRoleName(APP_STATE.role), dataUrl, caption, true);
-            sendOneChatPayload({
-                type: 'ONECHAT_SNAP',
-                sender: getRoleName(APP_STATE.role),
-                image: dataUrl,
-                caption
-            });
-
+            appendOneChatSnap(getRoleName(APP_STATE.role), dataUrl, caption, true, id);
+            sendOneChatPayload({ type: 'ONECHAT_SNAP', id, sender: getRoleName(APP_STATE.role), image: dataUrl, caption });
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.3);
-            showToast(`Picture Snap sent directly to ${getPeerRoleName()}!`, 'success');
-
-            // If in simulator mode without a remote peer browser connected, let peer send a fun Snap reply
-            if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
-                setTimeout(() => {
-                    spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.3);
-                    appendOneChatEntry(getPeerRoleName(), `🔥 Opened your Snap ("${caption}") directly over UDP port ${APP_STATE.fwBPort}!`, false, 'chat');
-                }, 1100);
-            }
+            showToast(`Snap sent to ${getPeerRoleName()}`, 'success');
         }
 
-        function appendOneChatSnap(sender, imageUrl, caption, isSelf) {
+        // The picture itself is never shown in the chat: only a small symbol the receiver taps to open it.
+        function appendOneChatSnap(sender, imageUrl, caption, isSelf, id) {
             const feed = document.getElementById('onechat-feed');
-            const isEphemeral = document.getElementById('onechat-ephemeral-toggle').checked;
-
+            id = id || ('s' + Date.now().toString(36));
             const card = document.createElement('div');
-            // Snapchat style vertical colored bar: Red for Snaps!
-            card.className = 'pl-3 border-l-4 border-rose-500 bg-slate-900/85 rounded-r-xl p-2.5 space-y-1.5 transition-all duration-300';
-            card.innerHTML = `
-                <div class="flex items-center justify-between">
-                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${isSelf ? 'text-rose-400' : 'text-yellow-300'}">${sender}</span>
-                    <span class="text-[10px] font-mono text-rose-400 flex items-center gap-1">
-                        <i class="fa-solid fa-square"></i> NEW PICTURE SNAP ${isEphemeral ? `(${ONECHAT_STATE.snapDurationSec}s)` : ''}
-                    </span>
-                </div>
-                <div onclick="openSnapViewer('${imageUrl}', '${caption.replace(/'/g, "\\'")}')" class="group relative rounded-xl overflow-hidden border border-rose-500/40 cursor-pointer max-h-40 bg-black flex items-center justify-center">
-                    <img src="${imageUrl}" alt="Snap" class="w-full h-36 object-cover group-hover:scale-105 transition duration-300">
-                    <div class="absolute inset-0 bg-black/35 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
-                        <span class="px-3 py-1 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-xs">Tap to open Snap</span>
+            card.className = 'pl-3 border-l-4 border-rose-500 bg-slate-900/85 rounded-r-xl py-2 px-3 flex items-center gap-3 transition-all duration-300';
+            if (isSelf) {
+                card.innerHTML = `
+                    <span class="w-9 h-9 rounded-full bg-slate-800 text-rose-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-image"></i></span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(sender)}</div>
+                        <div class="snap-status text-[11px] text-slate-400">Snap sent</div>
+                    </div>`;
+            } else {
+                SNAP_STORE.set(id, { img: imageUrl, caption, sender });
+                card.innerHTML = `
+                    <button onclick="openSnapViewer('${id}')" class="w-10 h-10 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 shadow transition active:scale-90" title="Open Snap"><i class="fa-solid fa-image"></i></button>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${escHtml(sender)}</div>
+                        <div class="snap-status text-[11px] text-slate-400">Sent you a Snap — tap the picture symbol to open</div>
                     </div>
-                </div>
-            `;
+                    <div class="snap-react flex items-center gap-1.5 text-base shrink-0">
+                        <button onclick="sendSnapReaction('${id}','❤️')" class="hover:scale-125 transition" title="React ❤️">❤️</button>
+                        <button onclick="sendSnapReaction('${id}','😂')" class="hover:scale-125 transition" title="React 😂">😂</button>
+                        <button onclick="sendSnapReaction('${id}','👍')" class="hover:scale-125 transition" title="React 👍">👍</button>
+                    </div>`;
+            }
+            SNAP_CARDS.set(id, card);
             feed.appendChild(card);
             feed.scrollTop = feed.scrollHeight;
+        }
 
-            if (isEphemeral) {
-                setTimeout(() => {
-                    card.style.opacity = '0.35';
-                    card.innerHTML = `
-                        <div class="flex items-center justify-between text-[11px] text-slate-500 font-mono">
-                            <span>${sender}</span>
-                            <span><i class="fa-regular fa-square text-rose-400 mr-1"></i>Snap Opened & Expired</span>
-                        </div>
-                    `;
-                }, (ONECHAT_STATE.snapDurationSec + 4) * 1000);
+        function sendSnapReaction(id, emoji) {
+            id = id || currentSnapId;
+            if (!id) return;
+            sendOneChatPayload({ type: 'ONECHAT_SNAP_REACT', id, emoji, sender: getRoleName(APP_STATE.role) });
+            appendOneChatEntry(getRoleName(APP_STATE.role), `Reacted ${emoji} to a Snap`, true, 'chat');
+            showToast(`Reaction ${emoji} sent`, 'success');
+        }
+
+        function handleIncomingSnapReaction(msg) {
+            const who = msg.sender || getPeerRoleName();
+            appendOneChatEntry(who, `Reacted ${msg.emoji} to your Snap`, false, 'chat');
+            const card = SNAP_CARDS.get(msg.id);
+            if (card) {
+                const st = card.querySelector('.snap-status');
+                if (st) st.textContent = `Snap — ${who} reacted ${msg.emoji}`;
             }
         }
 
-        function openSnapViewer(imageUrl, caption) {
-            const modal = document.getElementById('snap-viewer-modal');
-            const img = document.getElementById('snap-viewer-img');
-            const cap = document.getElementById('snap-viewer-caption');
+        function openSnapViewer(id) {
+            const snap = SNAP_STORE.get(id);
+            if (!snap) { showToast('This Snap has expired', 'info'); return; }
+            currentSnapId = id;
+            document.getElementById('snap-viewer-img').src = snap.img;
+            document.getElementById('snap-viewer-caption').textContent = snap.caption || '';
+            document.getElementById('snap-viewer-caption').classList.toggle('hidden', !snap.caption);
+            document.getElementById('snap-viewer-modal').classList.remove('hidden');
+
             const timerEl = document.getElementById('snap-viewer-timer');
-
-            img.src = imageUrl;
-            cap.textContent = caption || '';
-            modal.classList.remove('hidden');
-
-            let remaining = ONECHAT_STATE.snapDurationSec || 10;
-            timerEl.textContent = remaining;
             if (ONECHAT_STATE.snapViewerInterval) clearInterval(ONECHAT_STATE.snapViewerInterval);
-            ONECHAT_STATE.snapViewerInterval = setInterval(() => {
-                remaining--;
+            const ephemeral = document.getElementById('onechat-ephemeral-toggle').checked;
+            timerEl.parentElement.classList.toggle('hidden', !ephemeral);
+            if (ephemeral) {
+                let remaining = ONECHAT_STATE.snapDurationSec || 10;
                 timerEl.textContent = remaining;
-                if (remaining <= 0) {
-                    closeSnapViewer();
-                }
-            }, 1000);
+                ONECHAT_STATE.snapViewerInterval = setInterval(() => {
+                    remaining--;
+                    timerEl.textContent = remaining;
+                    if (remaining <= 0) closeSnapViewer();
+                }, 1000);
+            }
         }
 
         function closeSnapViewer() {
@@ -3625,6 +3834,22 @@ if __name__ == "__main__":
                 ONECHAT_STATE.snapViewerInterval = null;
             }
             document.getElementById('snap-viewer-modal').classList.add('hidden');
+            document.getElementById('snap-viewer-img').src = '';
+            const id = currentSnapId;
+            currentSnapId = null;
+            if (id && document.getElementById('onechat-ephemeral-toggle').checked) {
+                SNAP_STORE.delete(id);
+                const card = SNAP_CARDS.get(id);
+                if (card) {
+                    card.style.opacity = '0.45';
+                    card.innerHTML = `<span class="w-9 h-9 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><i class="fa-regular fa-image"></i></span><span class="text-[11px] text-slate-500 font-mono">Snap opened & expired</span>`;
+                }
+            }
+        }
+
+        function replyToSnapWithSnap() {
+            closeSnapViewer();
+            openSnapCamera();
         }
 
         function appendOneChatEntry(sender, text, isSelf, kind = 'chat') {
