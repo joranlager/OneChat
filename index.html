@@ -190,8 +190,8 @@
 
             <!-- Section tabs -->
             <nav class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/70 text-xs ml-1 sm:ml-3">
-                <button id="basic-tab-connect" onclick="basicShowTab('connect')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow">
-                    <i class="fa-solid fa-qrcode"></i><span>Connect</span>
+                <button id="basic-tab-connect" onclick="basicConnectTabClick()" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow">
+                    <i id="basic-tab-connect-icon" class="fa-solid fa-qrcode"></i><span id="basic-tab-connect-label">Connect</span>
                 </button>
                 <button id="basic-tab-onechat" onclick="basicShowTab('onechat')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-amber-300 hover:text-yellow-200">
                     <i id="basic-tab-lock" class="fa-solid fa-lock text-[10px] text-rose-400"></i>
@@ -201,7 +201,7 @@
 
             <div class="ml-auto flex items-center gap-2 shrink-0">
                 <div id="basic-status-pill" class="flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300 font-mono">
-                    <span id="basic-status-dot" class="w-2 h-2 rounded-full bg-rose-500"></span>
+                    <i id="basic-status-dot" class="fa-solid fa-link-slash text-sm text-rose-400"></i>
                     <span id="basic-status-text" class="hidden sm:inline text-[11px] font-semibold tracking-wider">NOT CONNECTED</span>
                 </div>
                 <button onclick="setViewMode('advanced')" class="min-h-[34px] px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-600/70 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Show the full 3D lab and advanced tools">
@@ -1134,6 +1134,8 @@
                     <button type="button" onclick="openSnapCamera()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Take a picture Snap">
                         <i class="fa-solid fa-camera text-xs"></i>
                     </button>
+                    <button type="button" onclick="document.getElementById('chat-attach-input').click()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center shrink-0" title="Send a file (any type)"><i class="fa-solid fa-paperclip text-xs"></i></button>
+                    <input id="chat-attach-input" type="file" class="hidden" onchange="handleFileSelect(event)">
                     <input id="onechat-input" type="text" placeholder="Send a chat to the peer..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
                     <button type="submit" class="px-4 min-h-[40px] rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 shrink-0 transition">
                         <span>Send</span>
@@ -1160,6 +1162,7 @@
             <button onclick="sendSnapReaction(null,'🔥')" class="hover:scale-125 transition">🔥</button>
         </div>
         <div class="mt-4 flex items-center gap-3">
+            <button id="snap-viewer-download" onclick="downloadCurrentSnap()" class="hidden px-4 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-download"></i> Download</button>
             <button onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
             <button onclick="closeSnapViewer()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-xmark"></i> Close</button>
         </div>
@@ -1167,11 +1170,29 @@
 
     <!-- MODAL FOR TAKING AN EPHEMERAL SNAP (camera runs only while this is open) -->
     <div id="snap-cam-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
-        <video id="snap-cam-video" class="max-w-full max-h-[68dvh] rounded-2xl border border-yellow-400/40 bg-slate-950 object-cover" playsinline autoplay muted></video>
+        <video id="snap-cam-video" class="max-w-full max-h-[60dvh] rounded-2xl border border-yellow-400/40 bg-slate-950 object-contain" playsinline autoplay muted></video>
         <input id="snap-cam-caption" type="text" placeholder="Add a caption (optional)" class="mt-3 w-full max-w-sm bg-slate-900 border border-slate-700 rounded-full px-4 py-2 text-center text-white text-sm focus:outline-none focus:border-yellow-400">
+        <select id="snap-cam-mode" class="mt-3 bg-slate-900 border border-slate-700 rounded-full px-4 py-2 text-xs text-yellow-300 focus:outline-none">
+            <option value="ephemeral">Ephemeral — view once, no download</option>
+            <option value="download">Allow download / storing</option>
+        </select>
         <div class="mt-4 flex items-center gap-4">
             <button onclick="closeSnapCamera()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">Cancel</button>
             <button onclick="captureAndSendSnap()" class="w-16 h-16 rounded-full border-4 border-yellow-400 bg-yellow-400 text-slate-950 text-lg flex items-center justify-center active:scale-90 transition" title="Capture and send"><i class="fa-solid fa-camera"></i></button>
+        </div>
+    </div>
+
+    <!-- MODAL FOR SENDING A PICKED PICTURE -->
+    <div id="attach-modal" class="hidden fixed inset-0 z-[70] bg-black/95 flex flex-col items-center justify-center p-4">
+        <img id="attach-preview" src="" alt="Preview" class="max-w-full max-h-[60dvh] rounded-2xl border border-yellow-400/40 object-contain">
+        <div id="attach-name" class="mt-3 text-xs text-slate-300 font-mono text-center break-all"></div>
+        <select id="attach-mode" class="mt-3 bg-slate-900 border border-slate-700 rounded-full px-4 py-2 text-xs text-yellow-300 focus:outline-none">
+            <option value="ephemeral">Ephemeral — view once, no download</option>
+            <option value="download">Allow download / storing</option>
+        </select>
+        <div class="mt-4 flex items-center gap-3">
+            <button onclick="closeAttachDialog()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">Cancel</button>
+            <button onclick="confirmAttachSend()" class="px-5 h-11 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-paper-plane"></i> Send</button>
         </div>
     </div>
 
@@ -2907,7 +2928,9 @@ if __name__ == "__main__":
                     } else if (parsed.type === 'ONECHAT_MSG') {
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
                     } else if (parsed.type === 'ONECHAT_SNAP') {
-                        appendOneChatSnap(parsed.sender || getPeerRoleName(), parsed.image, parsed.caption, false, parsed.id);
+                        /* legacy inline snaps no longer used */
+                    } else if (parsed.type === 'ONECHAT_FORGET') {
+                        handleIncomingForget(parsed);
                     } else if (parsed.type === 'ONECHAT_SNAP_REACT') {
                         handleIncomingSnapReaction(parsed);
                     } else if (parsed.type === 'ONECHAT_CALL_SIGNAL') {
@@ -2927,10 +2950,11 @@ if __name__ == "__main__":
                         incomingFileMeta = parsed;
                         incomingFileChunks = [];
                         incomingBytesReceived = 0;
-                        showToast(`Receiving file directly: ${parsed.name} (${Math.round(parsed.size / 1024)} KB)`, 'info');
+                        if (!parsed.chat) showToast(`Receiving file directly: ${parsed.name} (${Math.round(parsed.size / 1024)} KB)`, 'info');
                     } else if (parsed.type === 'FILE_END' && incomingFileMeta) {
                         const blob = new Blob(incomingFileChunks, { type: incomingFileMeta.mime || 'application/octet-stream' });
-                        offerReceivedFileDownload(incomingFileMeta.name, blob);
+                        if (incomingFileMeta.chat) receiveChatAttachment(incomingFileMeta, blob);
+                        else offerReceivedFileDownload(incomingFileMeta.name, blob);
                         incomingFileMeta = null;
                     }
                 } catch (e) {
@@ -3668,24 +3692,202 @@ if __name__ == "__main__":
                 : 'fa-solid fa-video text-xs text-white';
         }
 
-        const SNAP_STORE = new Map();   // id -> { img, caption, sender }
-        const SNAP_CARDS = new Map();   // id -> card element
+        const ATT_STORE = new Map();    // id -> { url, name, mime, size, mode, caption, kind, sender, isImage } (received)
+        const SNAP_CARDS = new Map();   // id -> card element (sent and received)
         const SNAP_CAM = { stream: null, ownsStream: false, simulated: false };
         let currentSnapId = null;
+        let pendingAttachFile = null;
 
         function escHtml(t) {
             return String(t == null ? '' : t).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
-        // Open the snap camera. The camera runs only while this view is open.
+        function fmtBytes(n) {
+            if (n >= 1048576) return (n / 1048576).toFixed(1) + ' MB';
+            if (n >= 1024) return Math.round(n / 1024) + ' KB';
+            return n + ' B';
+        }
+
+        function attachChannelOpen() {
+            const dc = APP_STATE.dataChannel;
+            return !!(dc && dc.readyState === 'open');
+        }
+
+        /* ---------- Sending: original bytes, any type, chunked over the data channel ---------- */
+        async function sendChatAttachment(file, opts) {
+            const dc = APP_STATE.dataChannel;
+            if (!attachChannelOpen()) { showToast('Connect with the other person first', 'info'); return false; }
+            const isImage = (file.type || '').startsWith('image/');
+            const meta = {
+                type: 'FILE_START', chat: true,
+                id: 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
+                kind: opts.kind || 'file',
+                mode: isImage ? (opts.mode || 'download') : 'download',
+                caption: opts.caption || '',
+                name: file.name || 'file',
+                size: file.size,
+                mime: file.type || 'application/octet-stream',
+                sender: getRoleName(APP_STATE.role)
+            };
+            dc.send(JSON.stringify(meta));
+            const status = appendSentAttachmentCard(meta, isImage);
+
+            const BIG = 262144, PIECE = 16384;
+            dc.bufferedAmountLowThreshold = 256 * 1024;
+            let offset = 0, lastPct = -1;
+            while (offset < file.size) {
+                const big = await file.slice(offset, offset + BIG).arrayBuffer();
+                for (let p = 0; p < big.byteLength; p += PIECE) {
+                    if (dc.readyState !== 'open') { status.textContent = 'Sending failed — connection closed'; return false; }
+                    while (dc.bufferedAmount > 1024 * 1024) {
+                        await new Promise(res => {
+                            const h = () => { dc.removeEventListener('bufferedamountlow', h); res(); };
+                            dc.addEventListener('bufferedamountlow', h);
+                            setTimeout(h, 400);
+                        });
+                        if (dc.readyState !== 'open') { status.textContent = 'Sending failed — connection closed'; return false; }
+                    }
+                    dc.send(big.slice(p, p + PIECE));
+                }
+                offset += big.byteLength;
+                const pct = Math.round((offset / file.size) * 100);
+                if (pct !== lastPct) { lastPct = pct; status.textContent = `Sending… ${pct}%`; }
+            }
+            dc.send(JSON.stringify({ type: 'FILE_END', id: meta.id }));
+            status.textContent = describeSent(meta, isImage);
+            spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.3);
+            return true;
+        }
+
+        function describeSent(meta, isImage) {
+            const what = meta.kind === 'snap' ? 'Snap' : (isImage ? 'Picture' : meta.name);
+            if (!isImage) return `Sent ${meta.name} (${fmtBytes(meta.size)})`;
+            return `${what} sent — ${meta.mode === 'ephemeral' ? 'view once, no download' : 'download allowed'}`;
+        }
+
+        function appendSentAttachmentCard(meta, isImage) {
+            const feed = document.getElementById('onechat-feed');
+            const card = document.createElement('div');
+            card.className = 'pl-3 border-l-4 border-rose-500 bg-slate-900/85 rounded-r-xl py-2 px-3 flex items-center gap-3 transition-all duration-300';
+            card.innerHTML = `
+                <span class="w-9 h-9 rounded-full bg-slate-800 text-rose-300 flex items-center justify-center shrink-0"><i class="fa-solid ${isImage ? 'fa-image' : 'fa-file'}"></i></span>
+                <div class="flex-1 min-w-0">
+                    <div class="font-extrabold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(meta.sender)}</div>
+                    <div class="snap-status text-[11px] text-slate-400">Sending…</div>
+                </div>`;
+            SNAP_CARDS.set(meta.id, card);
+            feed.appendChild(card);
+            feed.scrollTop = feed.scrollHeight;
+            return card.querySelector('.snap-status');
+        }
+
+        /* ---------- Receiving ---------- */
+        function receiveChatAttachment(meta, blob) {
+            const isImage = (meta.mime || '').startsWith('image/');
+            const url = URL.createObjectURL(blob);
+            ATT_STORE.set(meta.id, {
+                url, name: meta.name, mime: meta.mime, size: meta.size, mode: isImage ? meta.mode : 'download',
+                caption: meta.caption, kind: meta.kind, sender: meta.sender, isImage
+            });
+            renderReceivedAttachmentCard(meta.id, true);
+        }
+
+        function renderReceivedAttachmentCard(id, create) {
+            const att = ATT_STORE.get(id);
+            if (!att) return;
+            const feed = document.getElementById('onechat-feed');
+            let card = SNAP_CARDS.get(id);
+            if (!card) {
+                card = document.createElement('div');
+                card.className = 'pl-3 border-l-4 border-yellow-400 bg-slate-900/85 rounded-r-xl py-2 px-3 flex items-center gap-3 transition-all duration-300';
+                SNAP_CARDS.set(id, card);
+                feed.appendChild(card);
+            }
+            const sender = escHtml(att.sender || getPeerRoleName());
+            if (att.isImage) {
+                const dl = att.mode === 'download'
+                    ? `<button onclick="downloadAttachment('${id}')" class="w-8 h-8 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shrink-0" title="Download original"><i class="fa-solid fa-download text-xs"></i></button>` : '';
+                card.innerHTML = `
+                    <button onclick="openSnapViewer('${id}')" class="w-10 h-10 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 shadow transition active:scale-90" title="Open picture"><i class="fa-solid fa-image"></i></button>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
+                        <div class="snap-status text-[11px] text-slate-400">${att.mode === 'ephemeral' ? 'Sent a picture — tap the symbol to view it once' : 'Sent a picture — tap the symbol to view, download allowed'}</div>
+                    </div>
+                    ${dl}
+                    <div class="snap-react flex items-center gap-1.5 text-base shrink-0">
+                        <button onclick="sendSnapReaction('${id}','❤️')" class="hover:scale-125 transition" title="React ❤️">❤️</button>
+                        <button onclick="sendSnapReaction('${id}','😂')" class="hover:scale-125 transition" title="React 😂">😂</button>
+                        <button onclick="sendSnapReaction('${id}','👍')" class="hover:scale-125 transition" title="React 👍">👍</button>
+                    </div>`;
+            } else {
+                card.innerHTML = `
+                    <span class="w-10 h-10 rounded-full bg-slate-800 text-yellow-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-file"></i></span>
+                    <div class="flex-1 min-w-0">
+                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
+                        <div class="text-[11px] text-slate-200 truncate">${escHtml(att.name)}</div>
+                        <div class="snap-status text-[10px] text-slate-500">${fmtBytes(att.size)}</div>
+                    </div>
+                    <button onclick="downloadAttachment('${id}')" class="px-3 h-8 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 shrink-0"><i class="fa-solid fa-download"></i> Download</button>`;
+            }
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function downloadAttachment(id) {
+            const att = ATT_STORE.get(id);
+            if (!att || att.mode !== 'download') return;
+            const a = document.createElement('a');
+            a.href = att.url;
+            a.download = att.name || 'file';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+        }
+
+        /* ---------- Picking a file (any type) ---------- */
+        function handleFileSelect(event) {
+            const file = event.target.files && event.target.files[0];
+            event.target.value = '';
+            if (!file) return;
+            if (!attachChannelOpen()) { showToast('Connect with the other person first', 'info'); return; }
+            if ((file.type || '').startsWith('image/')) {
+                pendingAttachFile = file;
+                const img = document.getElementById('attach-preview');
+                if (img.dataset.url) URL.revokeObjectURL(img.dataset.url);
+                img.dataset.url = URL.createObjectURL(file);
+                img.src = img.dataset.url;
+                document.getElementById('attach-name').textContent = `${file.name} (${fmtBytes(file.size)})`;
+                document.getElementById('attach-mode').value = 'download';
+                document.getElementById('attach-modal').classList.remove('hidden');
+            } else {
+                sendChatAttachment(file, { kind: 'file' });
+            }
+        }
+
+        function closeAttachDialog() {
+            const img = document.getElementById('attach-preview');
+            if (img.dataset.url) { URL.revokeObjectURL(img.dataset.url); img.dataset.url = ''; }
+            img.src = '';
+            pendingAttachFile = null;
+            document.getElementById('attach-modal').classList.add('hidden');
+        }
+
+        function confirmAttachSend() {
+            const file = pendingAttachFile;
+            const mode = document.getElementById('attach-mode').value;
+            closeAttachDialog();
+            if (file) sendChatAttachment(file, { kind: 'file', mode });
+        }
+
+        /* ---------- Snap camera (runs only while open); captured at the camera's native size ---------- */
         async function openSnapCamera() {
-            if (!APP_STATE.isTunnelActive) {
+            if (!attachChannelOpen()) {
                 showToast('Connect with the other person first', 'info');
                 return;
             }
             const vid = document.getElementById('snap-cam-video');
             document.getElementById('snap-cam-modal').classList.remove('hidden');
             document.getElementById('snap-cam-caption').value = '';
+            document.getElementById('snap-cam-mode').value = 'ephemeral';
             SNAP_CAM.simulated = false;
             const callStream = ONECHAT_STATE.localStream;
             if (callStream && callStream.getVideoTracks().some(t => t.readyState === 'live')) {
@@ -3694,7 +3896,7 @@ if __name__ == "__main__":
             } else if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
                 try {
                     SNAP_CAM.stream = await navigator.mediaDevices.getUserMedia({
-                        video: { facingMode: ONECHAT_STATE.facingMode, width: { ideal: 640 }, height: { ideal: 480 } },
+                        video: { facingMode: ONECHAT_STATE.facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
                         audio: false
                     });
                     SNAP_CAM.ownsStream = true;
@@ -3719,103 +3921,64 @@ if __name__ == "__main__":
             document.getElementById('snap-cam-modal').classList.add('hidden');
         }
 
-        function captureAndSendSnap() {
+        async function captureAndSendSnap() {
             const video = document.getElementById('snap-cam-video');
             const snapCanvas = document.getElementById('onechat-snap-canvas');
             const caption = document.getElementById('snap-cam-caption').value.trim();
+            const mode = document.getElementById('snap-cam-mode').value;
 
-            snapCanvas.width = 480;
-            snapCanvas.height = 360;
             const ctx = snapCanvas.getContext('2d');
-
-            if (SNAP_CAM.stream && video.readyState >= 2) {
+            if (SNAP_CAM.stream && video.readyState >= 2 && video.videoWidth) {
+                snapCanvas.width = video.videoWidth;     // native size and aspect ratio
+                snapCanvas.height = video.videoHeight;
                 ctx.drawImage(video, 0, 0, snapCanvas.width, snapCanvas.height);
             } else {
                 const simCanvas = document.getElementById('onechat-sim-remote-canvas');
+                snapCanvas.width = simCanvas.width || 480;
+                snapCanvas.height = simCanvas.height || 360;
                 ctx.drawImage(simCanvas, 0, 0, snapCanvas.width, snapCanvas.height);
             }
-
-            if (caption) {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.62)';
-                ctx.fillRect(0, snapCanvas.height * 0.68, snapCanvas.width, 40);
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 16px Inter, sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(caption, snapCanvas.width / 2, snapCanvas.height * 0.68 + 25);
-            }
-
-            const dataUrl = snapCanvas.toDataURL('image/jpeg', 0.72);
-            const id = 's' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+            const blob = await new Promise(res => snapCanvas.toBlob(res, 'image/jpeg', 0.95));
             closeSnapCamera();
-
-            appendOneChatSnap(getRoleName(APP_STATE.role), dataUrl, caption, true, id);
-            sendOneChatPayload({ type: 'ONECHAT_SNAP', id, sender: getRoleName(APP_STATE.role), image: dataUrl, caption });
-            spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.3);
-            showToast(`Snap sent to ${getPeerRoleName()}`, 'success');
+            if (!blob) { showToast('Could not capture the picture', 'error'); return; }
+            const file = new File([blob], `snap-${Date.now()}.jpg`, { type: 'image/jpeg' });
+            sendChatAttachment(file, { kind: 'snap', mode, caption });
         }
 
-        // The picture itself is never shown in the chat: only a small symbol the receiver taps to open it.
-        function appendOneChatSnap(sender, imageUrl, caption, isSelf, id) {
-            const feed = document.getElementById('onechat-feed');
-            id = id || ('s' + Date.now().toString(36));
-            const card = document.createElement('div');
-            card.className = 'pl-3 border-l-4 border-rose-500 bg-slate-900/85 rounded-r-xl py-2 px-3 flex items-center gap-3 transition-all duration-300';
-            if (isSelf) {
-                card.innerHTML = `
-                    <span class="w-9 h-9 rounded-full bg-slate-800 text-rose-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-image"></i></span>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(sender)}</div>
-                        <div class="snap-status text-[11px] text-slate-400">Snap sent</div>
-                    </div>`;
-            } else {
-                SNAP_STORE.set(id, { img: imageUrl, caption, sender });
-                card.innerHTML = `
-                    <button onclick="openSnapViewer('${id}')" class="w-10 h-10 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 shadow transition active:scale-90" title="Open Snap"><i class="fa-solid fa-image"></i></button>
-                    <div class="flex-1 min-w-0">
-                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${escHtml(sender)}</div>
-                        <div class="snap-status text-[11px] text-slate-400">Sent you a Snap — tap the picture symbol to open</div>
-                    </div>
-                    <div class="snap-react flex items-center gap-1.5 text-base shrink-0">
-                        <button onclick="sendSnapReaction('${id}','❤️')" class="hover:scale-125 transition" title="React ❤️">❤️</button>
-                        <button onclick="sendSnapReaction('${id}','😂')" class="hover:scale-125 transition" title="React 😂">😂</button>
-                        <button onclick="sendSnapReaction('${id}','👍')" class="hover:scale-125 transition" title="React 👍">👍</button>
-                    </div>`;
-            }
-            SNAP_CARDS.set(id, card);
-            feed.appendChild(card);
-            feed.scrollTop = feed.scrollHeight;
-        }
-
+        /* ---------- Reactions ---------- */
         function sendSnapReaction(id, emoji) {
             id = id || currentSnapId;
             if (!id) return;
             sendOneChatPayload({ type: 'ONECHAT_SNAP_REACT', id, emoji, sender: getRoleName(APP_STATE.role) });
-            appendOneChatEntry(getRoleName(APP_STATE.role), `Reacted ${emoji} to a Snap`, true, 'chat');
+            appendOneChatEntry(getRoleName(APP_STATE.role), `Reacted ${emoji} to a picture`, true, 'chat');
             showToast(`Reaction ${emoji} sent`, 'success');
         }
 
         function handleIncomingSnapReaction(msg) {
             const who = msg.sender || getPeerRoleName();
-            appendOneChatEntry(who, `Reacted ${msg.emoji} to your Snap`, false, 'chat');
+            appendOneChatEntry(who, `Reacted ${msg.emoji} to your picture`, false, 'chat');
             const card = SNAP_CARDS.get(msg.id);
             if (card) {
                 const st = card.querySelector('.snap-status');
-                if (st) st.textContent = `Snap — ${who} reacted ${msg.emoji}`;
+                if (st) st.textContent = `${st.textContent.split(' — ')[0]} — ${who} reacted ${msg.emoji}`;
             }
         }
 
+        /* ---------- Full-screen viewer ---------- */
         function openSnapViewer(id) {
-            const snap = SNAP_STORE.get(id);
-            if (!snap) { showToast('This Snap has expired', 'info'); return; }
+            const att = ATT_STORE.get(id);
+            if (!att) { showToast('This picture has expired', 'info'); return; }
             currentSnapId = id;
-            document.getElementById('snap-viewer-img').src = snap.img;
-            document.getElementById('snap-viewer-caption').textContent = snap.caption || '';
-            document.getElementById('snap-viewer-caption').classList.toggle('hidden', !snap.caption);
+            document.getElementById('snap-viewer-img').src = att.url;
+            const cap = document.getElementById('snap-viewer-caption');
+            cap.textContent = att.caption || '';
+            cap.classList.toggle('hidden', !att.caption);
             document.getElementById('snap-viewer-modal').classList.remove('hidden');
+            document.getElementById('snap-viewer-download').classList.toggle('hidden', att.mode !== 'download');
 
             const timerEl = document.getElementById('snap-viewer-timer');
             if (ONECHAT_STATE.snapViewerInterval) clearInterval(ONECHAT_STATE.snapViewerInterval);
-            const ephemeral = document.getElementById('onechat-ephemeral-toggle').checked;
+            const ephemeral = att.mode === 'ephemeral';
             timerEl.parentElement.classList.toggle('hidden', !ephemeral);
             if (ephemeral) {
                 let remaining = ONECHAT_STATE.snapDurationSec || 10;
@@ -3828,6 +3991,8 @@ if __name__ == "__main__":
             }
         }
 
+        function downloadCurrentSnap() { if (currentSnapId) downloadAttachment(currentSnapId); }
+
         function closeSnapViewer() {
             if (ONECHAT_STATE.snapViewerInterval) {
                 clearInterval(ONECHAT_STATE.snapViewerInterval);
@@ -3837,12 +4002,14 @@ if __name__ == "__main__":
             document.getElementById('snap-viewer-img').src = '';
             const id = currentSnapId;
             currentSnapId = null;
-            if (id && document.getElementById('onechat-ephemeral-toggle').checked) {
-                SNAP_STORE.delete(id);
+            const att = id && ATT_STORE.get(id);
+            if (att && att.mode === 'ephemeral') {
+                URL.revokeObjectURL(att.url);
+                ATT_STORE.delete(id);
                 const card = SNAP_CARDS.get(id);
                 if (card) {
                     card.style.opacity = '0.45';
-                    card.innerHTML = `<span class="w-9 h-9 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><i class="fa-regular fa-image"></i></span><span class="text-[11px] text-slate-500 font-mono">Snap opened & expired</span>`;
+                    card.innerHTML = `<span class="w-9 h-9 rounded-full bg-slate-800 text-slate-500 flex items-center justify-center shrink-0"><i class="fa-regular fa-image"></i></span><span class="text-[11px] text-slate-500 font-mono">Picture opened & expired</span>`;
                 }
             }
         }
@@ -3850,6 +4017,39 @@ if __name__ == "__main__":
         function replyToSnapWithSnap() {
             closeSnapViewer();
             openSnapCamera();
+        }
+
+        /* ---------- Forget: both sides disconnect and wipe the conversation ---------- */
+        function wipeConversationLocally() {
+            if (ONECHAT_STATE.inCall || ONECHAT_STATE.callPhase !== 'idle') endOneChatCall(true);
+            closeSnapViewer();
+            closeSnapCamera();
+            closeAttachDialog();
+            ATT_STORE.forEach(a => { try { URL.revokeObjectURL(a.url); } catch (e) {} });
+            ATT_STORE.clear();
+            SNAP_CARDS.clear();
+            const feed = document.getElementById('onechat-feed');
+            if (feed) feed.innerHTML = '';
+            const list = document.getElementById('received-files-list');
+            if (list) list.innerHTML = '';
+            incomingFileMeta = null;
+            incomingFileChunks = [];
+            basicReset(true);
+            basicShowTab('connect', true);
+        }
+
+        function forgetConnection() {
+            if (!confirm('Forget this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
+            sendOneChatPayload({ type: 'ONECHAT_FORGET', sender: getRoleName(APP_STATE.role) });
+            setTimeout(() => {
+                wipeConversationLocally();
+                showToast('Conversation forgotten and disconnected.', 'info');
+            }, 250);
+        }
+
+        function handleIncomingForget(msg) {
+            wipeConversationLocally();
+            showToast(`${(msg && msg.sender) || getPeerRoleName()} forgot the conversation — disconnected.`, 'info');
         }
 
         function appendOneChatEntry(sender, text, isSelf, kind = 'chat') {
@@ -3932,81 +4132,6 @@ if __name__ == "__main__":
             `;
             list.prepend(item);
             showToast(`The file "${fileName}" was transferred directly PC-to-PC!`, 'success');
-        }
-
-        async function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-
-            if (!APP_STATE.isTunnelActive) {
-                activateFullP2PTunnel('P2P File Streaming');
-            }
-
-            const progressWrap = document.getElementById('file-progress-wrap');
-            const nameLabel = document.getElementById('file-name-label');
-            const pctLabel = document.getElementById('file-pct-label');
-            const bar = document.getElementById('file-progress-bar');
-            const speedBadge = document.getElementById('file-speed-badge');
-
-            progressWrap.classList.remove('hidden');
-            nameLabel.textContent = file.name;
-            pctLabel.textContent = '0%';
-            bar.style.width = '0%';
-
-            const buffer = await file.arrayBuffer();
-            const chunkSize = 16384; // 16 KB UDP-safe SCTP chunks
-            const totalSize = buffer.byteLength || 1;
-            let offset = 0;
-            const startTime = performance.now();
-
-            if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
-                APP_STATE.dataChannel.send(JSON.stringify({
-                    type: 'FILE_START',
-                    name: file.name,
-                    size: file.size,
-                    mime: file.type
-                }));
-            }
-
-            logPacketEvent('P2P-FILE', `PC_${APP_STATE.role}`, 'Tunnel', 'TUNNEL', `Starting direct transfer of "${file.name}" (${(file.size / 1024).toFixed(1)} KB) in 16 KB fragments`);
-
-            const sendNextBatch = () => {
-                let batchCount = 0;
-                while (offset < totalSize && batchCount < 8) {
-                    const slice = buffer.slice(offset, offset + chunkSize);
-                    if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
-                        APP_STATE.dataChannel.send(slice);
-                    }
-                    offset += chunkSize;
-                    batchCount++;
-                }
-
-                // Spawn glowing 3D packet burst representing the file chunks flying through the firewall holes
-                const ySpread = (Math.random() - 0.5) * 0.9;
-                spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, ySpread);
-
-                const pct = Math.min(100, Math.round((offset / totalSize) * 100));
-                pctLabel.textContent = `${pct}%`;
-                bar.style.width = `${pct}%`;
-
-                const elapsedSec = Math.max(0.05, (performance.now() - startTime) / 1000);
-                const kbps = Math.round((offset / 1024) / elapsedSec);
-                speedBadge.textContent = kbps > 1024 ? `${(kbps / 1024).toFixed(1)} MB/s` : `${kbps} KB/s`;
-
-                if (offset < totalSize) {
-                    setTimeout(sendNextBatch, 45);
-                } else {
-                    if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
-                        APP_STATE.dataChannel.send(JSON.stringify({ type: 'FILE_END' }));
-                    } else {
-                        // In simulation / single-PC preview, also show the verified received file
-                        const blob = new Blob([buffer], { type: file.type || 'application/octet-stream' });
-                        offerReceivedFileDownload(file.name, blob);
-                    }
-                }
-            };
-
-            sendNextBatch();
         }
 
         /**************************************************************************
@@ -4534,19 +4659,34 @@ if __name__ == "__main__":
 
             if (connected) {
                 pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 font-mono';
-                dot.className = 'w-2 h-2 rounded-full bg-emerald-400';
+                dot.className = 'fa-solid fa-link text-sm text-emerald-400';
                 text.textContent = 'CONNECTED';
                 lock.className = 'fa-solid fa-lock-open text-[10px] text-emerald-400';
             } else if (pairing) {
                 pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-amber-950/70 border border-amber-500/40 text-amber-300 font-mono';
-                dot.className = 'w-2 h-2 rounded-full bg-amber-400 animate-pulse';
+                dot.className = 'fa-solid fa-link text-sm text-amber-400 animate-pulse';
                 text.textContent = 'PAIRING…';
                 lock.className = 'fa-solid fa-lock text-[10px] text-rose-400';
             } else {
                 pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-rose-950/70 border border-rose-500/40 text-rose-300 font-mono';
-                dot.className = 'w-2 h-2 rounded-full bg-rose-500';
+                dot.className = 'fa-solid fa-link-slash text-sm text-rose-400';
                 text.textContent = 'NOT CONNECTED';
                 lock.className = 'fa-solid fa-lock text-[10px] text-rose-400';
+            }
+
+            const connTab = basicEl('basic-tab-connect');
+            const connIcon = basicEl('basic-tab-connect-icon');
+            const connLabel = basicEl('basic-tab-connect-label');
+            if (connected) {
+                connTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-rose-300 hover:bg-rose-950/60';
+                connIcon.className = 'fa-solid fa-link-slash';
+                connLabel.textContent = 'Forget';
+            } else {
+                connTab.className = BASIC.tab === 'connect'
+                    ? 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow'
+                    : 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-slate-300 hover:text-white';
+                connIcon.className = 'fa-solid fa-qrcode';
+                connLabel.textContent = 'Connect';
             }
 
             let msg = '';
@@ -4906,6 +5046,11 @@ if __name__ == "__main__":
         }
 
         /* ----- Basic / Advanced view switching and Basic tabs ----- */
+        function basicConnectTabClick() {
+            if (basicIsConnected()) forgetConnection();
+            else basicShowTab('connect');
+        }
+
         function basicShowTab(tab, force) {
             if (!force && BASIC.tab === tab) return;
             BASIC.tab = tab;
@@ -4934,6 +5079,7 @@ if __name__ == "__main__":
                     overlay.classList.remove('hidden');
                 }
             }
+            basicUpdateStatus();
         }
 
         function setViewMode(mode) {
