@@ -4334,6 +4334,36 @@ if __name__ == "__main__":
             }).format(d);
         })();
 
+        /* ---------- New-version check (home-screen apps stay loaded for a long time) ---------- */
+        const UPDATE = { checking: false, lastCheck: 0, notified: false };
+        async function checkForNewVersion() {
+            if (BUILD_INFO.commit.startsWith('__') || UPDATE.checking || UPDATE.notified) return;
+            if (Date.now() - UPDATE.lastCheck < 30000) return;
+            UPDATE.checking = true; UPDATE.lastCheck = Date.now();
+            try {
+                const res = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+                const m = res.ok && (await res.text()).match(/BUILD_INFO = \{ commit: '([0-9a-f]{7,40})'/);
+                if (m && m[1] !== BUILD_INFO.commit) onNewVersion(m[1]);
+            } catch (e) { /* offline: try again later */ }
+            UPDATE.checking = false;
+        }
+        function reloadToVersion(sha) { location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
+        function onNewVersion(sha) {
+            const dc = APP_STATE.dataChannel;
+            if (!(dc && dc.readyState === 'open')) { reloadToVersion(sha); return; }   // nobody connected: just update
+            UPDATE.notified = true;
+            const bar = document.createElement('div');
+            bar.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[95] flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-cyan-500/50 text-xs text-slate-200 shadow-2xl';
+            bar.innerHTML = '<span>New version available</span><button type="button" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold">Reload</button><button type="button" class="text-slate-400 hover:text-white px-1" title="Later">✕</button>';
+            const [reloadBtn, laterBtn] = bar.querySelectorAll('button');
+            reloadBtn.onclick = () => { if (confirm('Reloading ends the current connection. Reload now?')) reloadToVersion(sha); };
+            laterBtn.onclick = () => bar.remove();
+            document.body.appendChild(bar);
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForNewVersion(); });
+        window.addEventListener('pageshow', () => checkForNewVersion());
+        setInterval(checkForNewVersion, 5 * 60 * 1000);
+
         /* ---------- Typing indicator ---------- */
         const TYPING = { sentAt: 0, active: false, stopTimer: null, peerTimer: null };
 
