@@ -4117,7 +4117,8 @@ if __name__ == "__main__":
             stream: null,
             raf: null,
             lastBadScanAt: 0,
-            busy: false
+            busy: false,
+            punchTimer: null     // interval that keeps re-sending connectivity checks (see basicStartPunching)
         };
 
         function basicEl(id) { return document.getElementById(id); }
@@ -4140,6 +4141,48 @@ if __name__ == "__main__":
                 pc.addEventListener('icegatheringstatechange', check);
                 timer = setTimeout(finish, timeoutMs);
             });
+        }
+
+        /*
+         * NAT hole punching needs BOTH peers to send checks at the same time, but the QR exchange is slow:
+         * the guest starts checking as soon as it scans the Offer, while the host only starts after it scans
+         * the Answer, often minutes later. Chrome drops checks that get no reply after ~10-30 s, so by the time the
+         * host sends, the guest's router has closed its opening again. To fix this we keep re-adding the remote
+         * side's public (srflx) candidates every few seconds. Each re-add makes the ICE agent send fresh checks,
+         * which keeps our router open towards the peer until its checks come in.
+         * A fresh foundation per round stops the candidate being dropped as a duplicate.
+         */
+        const BASIC_PUNCH_INTERVAL_MS = 5000;
+        const BASIC_PUNCH_MAX_MS = 15 * 60 * 1000;
+
+        function basicStopPunching() {
+            if (BASIC.punchTimer) {
+                clearInterval(BASIC.punchTimer);
+                BASIC.punchTimer = null;
+            }
+        }
+
+        function basicStartPunching(pc, candidates) {
+            basicStopPunching();
+            const srflx = (candidates || []).filter(c => / typ srflx /.test(c + ' '));
+            if (!srflx.length) return;
+            const startedAt = Date.now();
+            let round = 0;
+            BASIC.punchTimer = setInterval(async () => {
+                if (pc !== APP_STATE.rtcPeer || pc.signalingState === 'closed' || basicIsConnected() ||
+                    Date.now() - startedAt > BASIC_PUNCH_MAX_MS) {
+                    basicStopPunching();
+                    return;
+                }
+                round++;
+                for (const c of srflx) {
+                    const parts = c.split(' ');
+                    parts[0] = (parts[0] + 'r' + round).slice(-32); // foundation: 1-32 ice-chars
+                    try {
+                        await pc.addIceCandidate({ candidate: 'candidate:' + parts.join(' '), sdpMid: '0', sdpMLineIndex: 0 });
+                    } catch (e) { /* ignore: a refused re-add just skips this round */ }
+                }
+            }, BASIC_PUNCH_INTERVAL_MS);
         }
 
         // Compact SDP serializer: only the fields WebRTC needs to rebuild a data-channel session
@@ -4296,6 +4339,7 @@ if __name__ == "__main__":
             if (connected && BASIC.step !== 'connected') {
                 BASIC.step = 'connected';
                 basicStopCamera();
+                basicStopPunching();
                 basicRender();
                 showToast('Connected! Open OneChat to start talking.', 'success');
             } else if (!connected && BASIC.step === 'connected') {
@@ -4311,6 +4355,7 @@ if __name__ == "__main__":
 
         function basicReset(closePeer) {
             basicStopCamera();
+            basicStopPunching();
             if (closePeer) {
                 try { if (APP_STATE.dataChannel) APP_STATE.dataChannel.close(); } catch (e) {}
                 try { if (APP_STATE.rtcPeer) APP_STATE.rtcPeer.close(); } catch (e) {}
@@ -4370,6 +4415,7 @@ if __name__ == "__main__":
                 await waitIceGatheringComplete(pc, APP_STATE.useStun ? 4000 : 2000);
                 basicShowCode('answer', basicEncodeDesc(pc.localDescription));
                 BASIC.step = 'guest-answer';
+                basicStartPunching(pc, o.c);
                 showToast('Offer accepted. Send your Answer QR code back.', 'success');
             } catch (err) {
                 showToast('Could not use that Offer: ' + err.message, 'error');
@@ -4385,6 +4431,7 @@ if __name__ == "__main__":
             basicUpdateStatus();
             try {
                 await APP_STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: basicBuildSdp(o) }));
+                basicStartPunching(APP_STATE.rtcPeer, o.c);
                 showToast('Answer accepted — connecting…', 'success');
             } catch (err) {
                 showToast('Could not use that Answer: ' + err.message, 'error');
