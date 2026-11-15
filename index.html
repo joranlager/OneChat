@@ -1047,7 +1047,16 @@
                         <option value="5">5 seconds</option>
                         <option value="10" selected>10 seconds</option>
                         <option value="30">30 seconds</option>
+                        <option value="60">1 minute</option>
+                        <option value="custom">Custom…</option>
                     </select>
+                </div>
+                <div id="onechat-snap-custom-row" class="hidden flex items-center justify-between text-[11px] text-slate-400 pt-1">
+                    <span>Custom time (1–3600 s):</span>
+                    <span class="flex items-center gap-1.5">
+                        <input id="onechat-snap-custom" type="number" min="1" max="3600" step="1" inputmode="numeric" oninput="updateOneChatSettings(true)" class="w-20 bg-slate-900 border border-slate-700 rounded-lg px-2 py-1 text-yellow-300 font-mono text-[11px] text-right focus:border-yellow-400 focus:outline-none">
+                        <span>seconds</span>
+                    </span>
                 </div>
             </div>
 
@@ -3302,11 +3311,24 @@ if __name__ == "__main__":
             if (settings) settings.classList.toggle('hidden');
         }
 
-        function updateOneChatSettings() {
+        function updateOneChatSettings(quiet) {
             const durEl = document.getElementById('onechat-snap-duration');
             const qualEl = document.getElementById('onechat-video-quality');
             const mirrorEl = document.getElementById('onechat-mirror-toggle');
-            if (durEl) ONECHAT_STATE.snapDurationSec = parseInt(durEl.value, 10) || 10;
+            if (durEl) {
+                const customRow = document.getElementById('onechat-snap-custom-row');
+                const customEl = document.getElementById('onechat-snap-custom');
+                const isCustom = durEl.value === 'custom';
+                if (customRow) customRow.classList.toggle('hidden', !isCustom);
+                let sec = parseInt(isCustom && customEl ? customEl.value : durEl.value, 10);
+                if (!(sec >= 1)) sec = isCustom ? 0 : 10;
+                if (sec > 3600) sec = 3600;
+                if (sec >= 1) {
+                    ONECHAT_STATE.snapDurationSec = sec;
+                    try { localStorage.setItem('onechat-snap-seconds', String(sec)); } catch (e) {}
+                }
+                if (quiet) return;
+            }
             if (qualEl) ONECHAT_STATE.videoQuality = qualEl.value;
             if (mirrorEl) {
                 ONECHAT_STATE.mirrorLocal = mirrorEl.checked;
@@ -3317,6 +3339,21 @@ if __name__ == "__main__":
             }
             showToast('OneChat settings updated', 'info');
         }
+
+        (function restoreSnapDuration() {
+            let sec = 0;
+            try { sec = parseInt(localStorage.getItem('onechat-snap-seconds'), 10) || 0; } catch (e) {}
+            if (!(sec >= 1 && sec <= 3600)) return;
+            ONECHAT_STATE.snapDurationSec = sec;
+            const durEl = document.getElementById('onechat-snap-duration');
+            if (!durEl) return;
+            if ([...durEl.options].some(o => o.value === String(sec))) durEl.value = String(sec);
+            else {
+                durEl.value = 'custom';
+                document.getElementById('onechat-snap-custom').value = sec;
+                document.getElementById('onechat-snap-custom-row').classList.remove('hidden');
+            }
+        })();
 
         function clearOneChatFeed() {
             const feed = document.getElementById('onechat-feed');
@@ -4518,6 +4555,7 @@ if __name__ == "__main__":
                 id: bItem ? bItem.id : 'a' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7),
                 kind: opts.kind || 'file',
                 mode: isImage ? (opts.mode || 'download') : 'download',
+                viewSec: ONECHAT_STATE.snapDurationSec || 10,
                 caption: opts.caption || '',
                 name: file.name || 'file',
                 size: file.size,
@@ -4840,6 +4878,7 @@ if __name__ == "__main__":
             const url = URL.createObjectURL(blob);
             ATT_STORE.set(meta.id, {
                 url, name: meta.name, mime: meta.mime, size: meta.size, mode: isImage ? meta.mode : 'download',
+                viewSec: (meta.viewSec >= 1 && meta.viewSec <= 3600) ? Math.floor(meta.viewSec) : 0,
                 caption: meta.caption, kind: meta.kind, sender: meta.sender, isImage
             });
             renderReceivedAttachmentCard(meta.id, true);
@@ -5065,7 +5104,7 @@ if __name__ == "__main__":
             const ephemeral = att.mode === 'ephemeral';
             timerEl.parentElement.classList.toggle('hidden', !ephemeral);
             if (ephemeral) {
-                let remaining = ONECHAT_STATE.snapDurationSec || 10;
+                let remaining = att.viewSec || ONECHAT_STATE.snapDurationSec || 10;   // the sender's chosen time wins
                 timerEl.textContent = remaining;
                 ONECHAT_STATE.snapViewerInterval = setInterval(() => {
                     remaining--;
