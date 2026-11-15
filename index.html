@@ -1060,6 +1060,11 @@
                 </div>
             </div>
 
+            <p class="text-[10px] leading-snug text-slate-500 border-t border-slate-800/80 pt-2">
+                <i class="fa-solid fa-camera-retro"></i> Screenshot notice: the other person is told when a screenshot shortcut is used on a computer.
+                Screenshots and screen recordings made on a phone cannot be detected by a web app.
+            </p>
+
             <!-- Video Stream Quality & FPS -->
             <div class="space-y-1 pt-2 border-t border-slate-800/80">
                 <label class="text-slate-200 font-semibold block">P2P Video Stream Quality:</label>
@@ -3203,6 +3208,8 @@ if __name__ == "__main__":
                         /* legacy inline snaps no longer used */
                     } else if (parsed.type === 'ONECHAT_FORGET') {
                         handleIncomingForget(parsed);
+                    } else if (parsed.type === 'ONECHAT_SCREENSHOT') {
+                        handleIncomingScreenshotNotice(parsed);
                     } else if (parsed.type === 'ONECHAT_SNAP_REACT') {
                         handleIncomingSnapReaction(parsed);
                     } else if (parsed.type === 'ONECHAT_CALL_SIGNAL') {
@@ -5246,6 +5253,37 @@ if __name__ == "__main__":
         /* ---------- Link health: heartbeat, loss detection, notification ---------- */
         const LINK = { wasUp: false, broken: false, lastHb: 0 };
         const LINK_TIMEOUT_MS = 12000;
+
+        /* ---------- Screenshot notice (best effort) ----------
+           Browsers cannot see screenshots or screen recordings made with the phone's own buttons or
+           recorder. What can be seen are the keyboard shortcuts on computers. */
+        const SHOT = { last: 0 };
+        function isScreenshotKey(e) {
+            const code = e.code || '';
+            if (e.key === 'PrintScreen' || code === 'PrintScreen') return true;                           // Windows / Linux
+            if (e.metaKey && e.shiftKey && (code === 'KeyS')) return true;                                // Win+Shift+S (Snipping Tool)
+            if (e.metaKey && e.shiftKey && ['Digit3', 'Digit4', 'Digit5', 'Digit6'].includes(code)) return true;   // macOS Cmd+Shift+3/4/5/6
+            return false;
+        }
+        function onScreenshotShortcut(e) {
+            if (!isScreenshotKey(e)) return;
+            const dc = APP_STATE.dataChannel;
+            if (!ONECHAT_STATE.isOpen || !dc || dc.readyState !== 'open') return;
+            const now = Date.now();
+            if (now - SHOT.last < 4000) return;           // one notice per screenshot
+            SHOT.last = now;
+            const viewing = !document.getElementById('snap-viewer-modal').classList.contains('hidden');
+            try { dc.send(JSON.stringify({ type: 'ONECHAT_SCREENSHOT', viewing })); } catch (err) {}
+            appendOneChatSystem(`📸 Screenshot shortcut detected — ${getPeerRoleName()} was told.`, 'bad');
+        }
+        document.addEventListener('keydown', onScreenshotShortcut, true);
+        document.addEventListener('keyup', onScreenshotShortcut, true);
+
+        function handleIncomingScreenshotNotice(msg) {
+            const who = getPeerRoleName();                 // never trust a name sent along with the notice
+            appendOneChatSystem(`📸 ${who} may have taken a screenshot${msg && msg.viewing ? ' of a picture' : ''}.`, 'bad');
+            showToast(`${who} may have taken a screenshot`, 'warn');
+        }
 
         function appendOneChatSystem(text, tone) {
             const feed = document.getElementById('onechat-feed');
