@@ -180,6 +180,31 @@
 </head>
 <body class="font-sans antialiased select-none basic-mode">
 
+    <!-- Splash screen (skipped right after a refresh / update reload) -->
+    <div id="oc-splash" style="position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:radial-gradient(circle at 50% 40%,#0e2440,#050811 70%);color:#e2e8f0;font-family:Inter,system-ui,sans-serif;transition:opacity .5s ease">
+        <div style="position:relative;width:112px;height:112px;animation:oc-pop .5s ease-out">
+            <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin 1.4s linear infinite"></div>
+            <img src="icons/logo.webp?v=3" alt="" style="position:absolute;inset:16px;width:80px;height:80px;border-radius:18px;object-fit:contain">
+        </div>
+        <div style="text-align:center;animation:oc-fade-in .8s ease-out">
+            <div style="font-weight:800;font-size:28px;letter-spacing:-.01em;color:#fff">OneChat</div>
+            <div style="font-weight:400;font-size:13px;color:#94a3b8;margin-top:4px">by Jøran Lager</div>
+        </div>
+    </div>
+    <script>
+        (function () {
+            var el = document.getElementById('oc-splash');
+            var skip = false;
+            try { skip = sessionStorage.getItem('oc-skip-splash') === '1'; sessionStorage.removeItem('oc-skip-splash'); } catch (e) {}
+            if (skip) { el.remove(); return; }
+            setTimeout(function () {
+                el.style.opacity = '0';
+                el.style.pointerEvents = 'none';
+                setTimeout(function () { el.remove(); }, 550);
+            }, 1500);
+        })();
+    </script>
+
     <!-- 3D WebGL Canvas Container -->
     <div id="webgl-container"></div>
 
@@ -349,6 +374,13 @@
                 <p id="basic-status-line" class="hidden text-xs text-center text-slate-400"></p>
                 <div class="text-center">
                     <button id="basic-btn-reset" onclick="basicReset(true)" class="hidden text-xs text-slate-400 hover:text-white underline underline-offset-2">Start over</button>
+                </div>
+
+                <!-- Local date, time and timezone -->
+                <div class="pt-6 pb-2 text-center select-text">
+                    <div id="home-clock-time" class="text-2xl font-bold text-white tabular-nums tracking-tight"></div>
+                    <div id="home-clock-date" class="text-xs text-slate-400 mt-0.5"></div>
+                    <div id="home-clock-tz" class="text-[11px] text-slate-500 mt-0.5 font-mono"></div>
                 </div>
             </div>
         </main>
@@ -5389,6 +5421,27 @@ if __name__ == "__main__":
             });
         })();
 
+        /* ---------- Home screen clock: local date + time (no seconds) + timezone ---------- */
+        (function initHomeClock() {
+            const t = document.getElementById('home-clock-time');
+            if (!t) return;
+            const d = document.getElementById('home-clock-date');
+            const z = document.getElementById('home-clock-tz');
+            function tick() {
+                const now = new Date();
+                t.textContent = now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+                d.textContent = now.toLocaleDateString([], { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' });
+                let name = '';
+                try { name = Intl.DateTimeFormat().resolvedOptions().timeZone || ''; } catch (e) {}
+                const abbr = (now.toLocaleTimeString([], { timeZoneName: 'short' }).match(/\s([^\d\s:][^\s]*)$/) || [])[1] || '';
+                const off = -now.getTimezoneOffset();
+                const utc = 'UTC' + (off >= 0 ? '+' : '−') + String(Math.floor(Math.abs(off) / 60)).padStart(2, '0') + ':' + String(Math.abs(off) % 60).padStart(2, '0');
+                z.textContent = [name.replace(/_/g, ' '), abbr && abbr !== utc ? abbr : '', utc].filter(Boolean).join(' · ');
+                setTimeout(tick, 60000 - (now.getSeconds() * 1000 + now.getMilliseconds()) + 50);   // next full minute
+            }
+            tick();
+        })();
+
         async function fullRefresh() {
             const dc = APP_STATE.dataChannel;
             if (dc && dc.readyState === 'open' && !confirm('Refreshing ends the current connection. Refresh now?')) return;
@@ -5407,6 +5460,7 @@ if __name__ == "__main__":
             try { await fetch(location.pathname + '?r=' + Date.now(), { cache: 'reload' }); } catch (e) {}
             await minShow;
             window.__ocReloading = true;
+            try { sessionStorage.setItem('oc-skip-splash', '1'); } catch (e) {}
             location.replace(location.pathname + '?r=' + Date.now().toString(36));
         }
 
@@ -5423,7 +5477,7 @@ if __name__ == "__main__":
             } catch (e) { /* offline: try again later */ }
             UPDATE.checking = false;
         }
-        function reloadToVersion(sha) { window.__ocReloading = true; location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
+        function reloadToVersion(sha) { window.__ocReloading = true; try { sessionStorage.setItem('oc-skip-splash', '1'); } catch (e) {} location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
         function onNewVersion(sha) {
             const dc = APP_STATE.dataChannel;
             if (!(dc && dc.readyState === 'open')) { reloadToVersion(sha); return; }   // nobody connected: just update
