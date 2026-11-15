@@ -6,6 +6,20 @@
     <title>OneChat — Offline Direct P2P Connection</title>
     <meta name="description" content="Direct peer-to-peer chat, snaps and video calls — no servers, no accounts.">
     <meta name="theme-color" content="#050811">
+    <!-- Link preview card (Messenger, Snapchat, iMessage, Slack …). The join code after # never reaches the server. -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="OneChat">
+    <meta property="og:title" content="OneChat — Join me">
+    <meta property="og:description" content="Tap to open OneChat and join a private, direct chat. No servers, no accounts.">
+    <meta property="og:url" content="https://joranlager.github.io/OneChat/">
+    <meta property="og:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png">
+    <meta property="og:image:width" content="512">
+    <meta property="og:image:height" content="512">
+    <meta property="og:image:alt" content="OneChat logo">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="OneChat — Join me">
+    <meta name="twitter:description" content="Tap to open OneChat and join a private, direct chat.">
+    <meta name="twitter:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png">
     <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
     <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
     <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
@@ -155,6 +169,9 @@
         /* Basic / Advanced view switching */
         body.basic-mode .adv-only { display: none !important; }
         body:not(.basic-mode) .basic-only { display: none !important; }
+        @keyframes oc-spin { to { transform: rotate(360deg); } }
+        @keyframes oc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes oc-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
         body.basic-mode #onechat-overlay {
             top: 52px !important;
             height: calc(100dvh - 52px) !important;
@@ -178,14 +195,22 @@
         <header id="basic-header" class="shrink-0 h-[52px] px-2 sm:px-3 flex items-center gap-2 sm:gap-3 hud-glass border-t-0 border-x-0 relative z-[65]">
             <!-- Site QR (flush against the brand) + brand -->
             <div class="flex items-center min-w-0">
-                <button type="button" onclick="copySiteQr()" title="Click to copy this QR code as an image — paste it into any chat app" aria-label="Copy QR code image" class="cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
+                <button type="button" onclick="copySiteQr()" title="Join me: a QR image and link that let someone join you" aria-label="Show Join me QR code and link" class="cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
                     <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
                 </button>
-                <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
-                <div class="hidden sm:block pl-2 min-w-0">
-                    <div class="font-bold text-sm text-white leading-tight">OneChat</div>
-                    <div class="text-[10px] text-slate-400 leading-tight truncate">Direct P2P chat — no servers</div>
-                </div>
+                <button type="button" onclick="toggleAboutPopover(event)" title="About OneChat" aria-label="About OneChat" class="flex items-center min-w-0 text-left rounded-lg hover:bg-white/5 transition">
+                    <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
+                    <div class="hidden sm:block pl-2 min-w-0">
+                        <div class="font-bold text-sm text-white leading-tight">OneChat</div>
+                        <div class="text-[10px] text-slate-400 leading-tight truncate">Direct P2P chat — no servers</div>
+                    </div>
+                </button>
+            </div>
+            <div id="about-popover" class="hidden absolute top-[54px] left-2 z-[70] w-72 max-w-[calc(100vw-1rem)] rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-3 text-xs text-slate-300 space-y-1 select-text">
+                <div class="font-bold text-white">OneChat</div>
+                <div>Made by J Lager</div>
+                <div class="font-mono text-[10px] text-slate-400 break-all">Commit <span id="about-commit">—</span></div>
+                <div class="font-mono text-[10px] text-slate-400" id="about-time">—</div>
             </div>
 
             <!-- Section tabs -->
@@ -217,6 +242,23 @@
                     <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Connect</h2>
                     <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pair two devices directly — no servers, no accounts. Swap two QR codes, an <strong class="text-cyan-300">Offer</strong> and an <strong class="text-emerald-300">Answer</strong>, by camera or through any chat app.</p>
                 </div>
+
+                <!-- Who you are / who you connect with -->
+                <section class="hud-glass rounded-2xl p-3 flex items-center gap-3">
+                    <div id="basic-my-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] text-slate-400">You appear as</div>
+                        <div id="basic-my-name" class="text-sm font-bold text-white truncate"></div>
+                    </div>
+                    <button onclick="openProfileEditor()" class="min-h-[36px] px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-pen"></i> Edit</button>
+                </section>
+                <section id="basic-peer-chip" class="hidden rounded-2xl p-3 bg-cyan-950/40 border border-cyan-500/40 flex items-center gap-3">
+                    <div id="basic-peer-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] text-cyan-300">Connecting with</div>
+                        <div id="basic-peer-name" class="text-sm font-bold text-white truncate"></div>
+                    </div>
+                </section>
 
                 <!-- Step: choose -->
                 <section id="basic-step-choose" class="space-y-3">
@@ -288,6 +330,10 @@
                 <section id="basic-done-card" class="hidden rounded-2xl p-5 bg-emerald-950/50 border border-emerald-400/50 text-center space-y-3">
                     <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl"><i class="fa-solid fa-link"></i></div>
                     <h3 class="text-lg font-extrabold text-white">Connected!</h3>
+                    <div id="basic-done-peer" class="hidden flex items-center justify-center gap-2">
+                        <div id="basic-done-avatar" class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden"></div>
+                        <span id="basic-done-name" class="text-sm font-bold text-emerald-200"></span>
+                    </div>
                     <p class="text-xs text-slate-300">A direct, encrypted peer-to-peer link is open. Nothing goes through a server.</p>
                     <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
                 </section>
@@ -306,7 +352,7 @@
             <!-- Brand & Title (QR code is the first item so it always sits flush against the brand icon) -->
             <div class="flex items-center gap-2 sm:gap-3 min-w-0">
                 <!-- Discreet QR code linking to the site (top-left corner); negative margin cancels the group gap -->
-                <button type="button" onclick="copySiteQr()" title="Click to copy this QR code as an image — paste it into any chat app" aria-label="Copy QR code image" class="self-center -mr-2 sm:-mr-3 cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
+                <button type="button" onclick="copySiteQr()" title="Join me: a QR image and link that let someone join you" aria-label="Show Join me QR code and link" class="self-center -mr-2 sm:-mr-3 cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
                     <div id="site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
                 </button>
                 <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
@@ -883,7 +929,7 @@
         </div>
 
         <!-- TOP MINIMAL FLOATING BAR: HAMBURGER MENU (TOP-LEFT), PEER PILL (CENTER), SETTINGS GEAR (TOP-RIGHT) -->
-        <div class="absolute top-0 left-0 right-0 z-40 px-4 py-3 flex items-center justify-between pointer-events-none">
+        <div id="onechat-topbar" class="relative shrink-0 z-40 px-4 py-3 flex items-center justify-between gap-2 pointer-events-none bg-[#06080f] border-b border-slate-800/80">
             <!-- Top-Left: Hamburger Menu Button -->
             <button onclick="toggleOneChatHamburgerMenu()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-white flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="Menu">
                 <i class="fa-solid fa-bars text-lg"></i>
@@ -893,7 +939,7 @@
             <div class="flex items-center gap-2 bg-black/65 backdrop-blur-xl border border-white/15 px-3 py-1.5 rounded-full shadow-xl pointer-events-auto">
                 <div class="relative">
                     <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-500 to-emerald-400 p-0.5">
-                        <div class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-yellow-300 text-xs">
+                        <div id="onechat-peer-avatar" class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-yellow-300 text-xs overflow-hidden">
                             <i class="fa-solid fa-ghost"></i>
                         </div>
                     </div>
@@ -948,7 +994,7 @@
                 </div>
             </button>
 
-            <button onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
+            <button id="menu-swap-pip" onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="hidden w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
                 <i class="fa-solid fa-right-left text-base w-5 text-center"></i>
                 <div>
                     <div>Swap Large / Small Camera Window</div>
@@ -963,6 +1009,8 @@
                     <div class="text-[10px] text-slate-400 font-normal">Delete all displayed messages and Snaps</div>
                 </div>
             </button>
+
+            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 select-text break-all">Commit <span id="build-commit">—</span> · <span id="build-time">—</span></div>
         </div>
 
         <!-- ONECHAT SETTINGS MODAL (TOP-RIGHT GEAR) -->
@@ -975,6 +1023,16 @@
                 <button onclick="toggleOneChatSettingsModal()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
+            </div>
+
+            <!-- Profile -->
+            <div class="flex items-center gap-3">
+                <div id="settings-my-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] text-slate-400">Your name and picture</div>
+                    <div id="settings-my-name" class="text-sm font-bold text-white truncate"></div>
+                </div>
+                <button onclick="toggleOneChatSettingsModal(); openProfileEditor();" class="px-3 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-pen"></i> Edit</button>
             </div>
 
             <!-- Ephemeral Timer Setting -->
@@ -1017,7 +1075,7 @@
         </div>
 
         <!-- MAIN FULLSCREEN ONECHAT BODY: SPLIT INTO CAMERA / VIDEO STAGE & SNAPCHAT FEED -->
-        <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 overflow-hidden w-full h-full">
+        <div class="flex-1 min-h-0 grid grid-cols-1 lg:grid-cols-12 overflow-hidden w-full">
 
             <!-- LEFT / TOP STAGE: SNAP CAMERA & SWAPPABLE P2P VIDEO CALL -->
             <div id="onechat-media-stage" class="hidden lg:col-span-8 relative bg-black flex flex-col items-center justify-center overflow-hidden h-full min-h-[54dvh]">
@@ -1030,6 +1088,12 @@
                     <img id="onechat-remote-stream-img" class="hidden w-full h-full object-cover" alt="Remote P2P Video">
                     <!-- Animated Cyber Peer Stream when Peer has no physical camera or before call -->
                     <canvas id="onechat-sim-remote-canvas" class="w-full h-full object-cover"></canvas>
+                    <!-- Audio call: the other party's profile picture in its original aspect ratio -->
+                    <div id="onechat-audio-peer" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 bg-[#071324]">
+                        <img id="onechat-audio-peer-img" alt="" class="max-w-full max-h-[70%] object-contain rounded-2xl shadow-2xl">
+                        <div id="onechat-audio-peer-name" class="text-white font-bold text-base"></div>
+                        <div class="text-emerald-300 text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Audio call</div>
+                    </div>
 
                     <div id="onechat-remote-label" class="absolute bottom-3 left-3 px-2.5 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/15 text-[10px] font-mono text-emerald-300 flex items-center gap-1.5 pointer-events-none">
                         <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -1109,7 +1173,7 @@
             </div>
 
             <!-- RIGHT / BOTTOM STAGE: SNAPCHAT CONVERSATION FEED -->
-            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden pt-[68px]">
+            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden">
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                     <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
@@ -1197,9 +1261,12 @@
     </div>
 
     <!-- MODAL FOR INCOMING / OUTGOING CALL -->
-    <div id="onechat-call-modal" class="hidden fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="onechat-call-modal" class="hidden fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
         <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-white/15 p-6 text-center space-y-4 shadow-2xl">
-            <div class="w-16 h-16 mx-auto rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl animate-pulse"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></div>
+            <div class="relative w-20 h-20 mx-auto">
+                <div id="call-modal-avatar" class="w-20 h-20 rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl font-bold overflow-hidden animate-pulse"></div>
+                <span class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-slate-950 text-xs"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></span>
+            </div>
             <div>
                 <div id="onechat-call-modal-title" class="text-white font-extrabold text-base">Incoming call</div>
                 <div id="onechat-call-modal-sub" class="text-xs text-slate-400 mt-1"></div>
@@ -1207,6 +1274,38 @@
             <div class="flex items-center justify-center gap-4">
                 <button id="onechat-call-modal-decline" onclick="declineOneChatCall()" class="px-5 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone-slash"></i> <span>Decline</span></button>
                 <button id="onechat-call-modal-accept" onclick="acceptOneChatCall()" class="px-5 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Accept</button>
+            </div>
+        </div>
+        <div id="call-self-wrap" class="hidden w-full max-w-xs">
+            <video id="call-self-preview" class="w-full aspect-[3/4] max-h-[40dvh] object-cover rounded-2xl border border-white/15 bg-black" playsinline autoplay muted></video>
+            <div class="text-[10px] text-center text-slate-400 mt-1">You</div>
+        </div>
+    </div>
+
+    <!-- PROFILE EDITOR: name + picture -->
+    <div id="profile-modal" class="hidden fixed inset-0 z-[80] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-4 shadow-2xl text-xs text-slate-200">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-sm text-white">Your profile</h3>
+                <button type="button" onclick="closeProfileEditor()" class="text-slate-400 hover:text-white p-1" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="relative w-32 h-32 mx-auto">
+                <div id="pm-avatar" class="w-32 h-32 rounded-full bg-slate-800 text-slate-300 text-4xl font-bold flex items-center justify-center overflow-hidden"></div>
+                <video id="pm-video" class="hidden absolute inset-0 w-32 h-32 rounded-full object-cover scale-x-[-1]" playsinline autoplay muted></video>
+            </div>
+            <div class="flex justify-center gap-2">
+                <button type="button" id="pm-cam-btn" onclick="profileCameraButton()" class="px-3 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> <span>Take picture</span></button>
+                <button type="button" id="pm-remove-btn" onclick="profileRemovePhoto()" class="px-3 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold">Remove</button>
+                <input id="pm-file" type="file" accept="image/*" capture="user" class="hidden" onchange="profileFileChosen(event)">
+            </div>
+            <label class="block space-y-1">
+                <span class="text-slate-400">Name</span>
+                <input id="pm-name" type="text" maxlength="30" placeholder="Your name" class="w-full min-h-[40px] bg-slate-950 border border-slate-700 rounded-lg px-3 text-sm text-white focus:border-yellow-400 focus:outline-none">
+            </label>
+            <p class="text-[10px] text-slate-500">Shown to the person you connect with, and when you call them. Stored only on this device.</p>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">Cancel</button>
+                <button type="button" onclick="saveProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold">Save</button>
             </div>
         </div>
     </div>
@@ -1361,12 +1460,171 @@
             cameraPreset: 'overview'
         };
 
+        /* ---------- Profile: own name + picture, and the other party's ---------- */
+        var MY_PROFILE = { name: '', photo: '' };
+        var PEER_PROFILE = { name: '', photo: '' };
+        function cleanProfileName(n) { return String(n || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 30); }
+        function cleanProfilePhoto(p) {
+            return (typeof p === 'string' && p.length < 400000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p)) ? p : '';
+        }
+        try {
+            const saved = JSON.parse(localStorage.getItem('onechat-profile') || '{}');
+            MY_PROFILE = { name: cleanProfileName(saved.name), photo: cleanProfilePhoto(saved.photo) };
+        } catch (e) {}
+
         function getRoleName(roleCode) {
-            return roleCode === 'A' ? 'OneGiver' : 'OneReceiver';
+            const base = roleCode === 'A' ? 'OneGiver' : 'OneReceiver';
+            if (roleCode === APP_STATE.role && MY_PROFILE.name) return MY_PROFILE.name;
+            if (APP_STATE.role && roleCode !== APP_STATE.role && PEER_PROFILE.name) return PEER_PROFILE.name;
+            return base;
         }
 
         function getPeerRoleName() {
-            return APP_STATE.role === 'A' ? 'OneReceiver' : 'OneGiver';
+            return getRoleName(APP_STATE.role === 'A' ? 'B' : 'A');
+        }
+
+        // Fills an avatar box with a picture, else the first letter of the name, else an icon
+        function fillAvatar(el, prof, icon) {
+            if (!el) return;
+            el.textContent = '';
+            if (prof && prof.photo) {
+                const img = document.createElement('img');
+                img.src = prof.photo; img.alt = '';
+                img.className = 'w-full h-full object-cover';
+                el.appendChild(img);
+            } else if (prof && prof.name) {
+                el.textContent = prof.name.charAt(0).toUpperCase();
+            } else {
+                const i = document.createElement('i');
+                i.className = 'fa-solid ' + (icon || 'fa-user');
+                el.appendChild(i);
+            }
+        }
+
+        function refreshProfileUI() {
+            const myLabel = MY_PROFILE.name || 'No name set';
+            fillAvatar(document.getElementById('basic-my-avatar'), MY_PROFILE);
+            fillAvatar(document.getElementById('settings-my-avatar'), MY_PROFILE);
+            ['basic-my-name', 'settings-my-name'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = myLabel; });
+            const peerKnown = !!(PEER_PROFILE.name || PEER_PROFILE.photo);
+            const peerLabel = PEER_PROFILE.name || 'The other person';
+            const connected = !!(APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open');
+            const chip = document.getElementById('basic-peer-chip');
+            if (chip) chip.classList.toggle('hidden', !peerKnown || connected);
+            fillAvatar(document.getElementById('basic-peer-avatar'), PEER_PROFILE);
+            const pn = document.getElementById('basic-peer-name'); if (pn) pn.textContent = peerLabel;
+            const done = document.getElementById('basic-done-peer');
+            if (done) done.classList.toggle('hidden', !peerKnown);
+            fillAvatar(document.getElementById('basic-done-avatar'), PEER_PROFILE);
+            const dn = document.getElementById('basic-done-name'); if (dn) dn.textContent = peerLabel;
+            fillAvatar(document.getElementById('onechat-peer-avatar'), PEER_PROFILE, 'fa-ghost');
+            if (typeof ONECHAT_STATE !== 'undefined') updateAudioCallPeerPhoto();
+            if (typeof updateOneChatHeaderRole === 'function') updateOneChatHeaderRole();
+        }
+
+        function updateAudioCallPeerPhoto() {
+            const box = document.getElementById('onechat-audio-peer');
+            if (!box) return;
+            const show = !!(ONECHAT_STATE.inCall && !ONECHAT_STATE.isVideoCall && PEER_PROFILE.photo);
+            box.classList.toggle('hidden', !show);
+            if (show) {
+                const img = document.getElementById('onechat-audio-peer-img');
+                if (img.src !== PEER_PROFILE.photo) img.src = PEER_PROFILE.photo;
+                document.getElementById('onechat-audio-peer-name').textContent = getPeerRoleName();
+            }
+        }
+
+        function sendMyProfile() {
+            const dc = APP_STATE.dataChannel;
+            if (!dc || dc.readyState !== 'open') return;
+            try { dc.send(JSON.stringify({ type: 'PROFILE', name: MY_PROFILE.name, photo: MY_PROFILE.photo })); } catch (e) {}
+        }
+
+        function receivePeerProfile(msg) {
+            PEER_PROFILE = { name: cleanProfileName(msg.name), photo: cleanProfilePhoto(msg.photo) };
+            refreshProfileUI();
+        }
+
+        function clearPeerProfile() {
+            PEER_PROFILE = { name: '', photo: '' };
+            refreshProfileUI();
+        }
+
+        /* Profile editor */
+        const PROFILE_EDIT = { photo: '', stream: null };
+        function openProfileEditor() {
+            PROFILE_EDIT.photo = MY_PROFILE.photo;
+            document.getElementById('pm-name').value = MY_PROFILE.name;
+            profileRenderPreview();
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+        function profileRenderPreview() {
+            fillAvatar(document.getElementById('pm-avatar'), { name: document.getElementById('pm-name').value.trim(), photo: PROFILE_EDIT.photo });
+            document.getElementById('pm-remove-btn').classList.toggle('hidden', !PROFILE_EDIT.photo);
+        }
+        function profileStopCamera() {
+            if (PROFILE_EDIT.stream) PROFILE_EDIT.stream.getTracks().forEach(t => t.stop());
+            PROFILE_EDIT.stream = null;
+            const v = document.getElementById('pm-video');
+            v.srcObject = null; v.classList.add('hidden');
+            document.querySelector('#pm-cam-btn span').textContent = 'Take picture';
+        }
+        function closeProfileEditor() {
+            profileStopCamera();
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+        function profileFromSource(src, w, h) {
+            // keep the original aspect ratio; round avatars crop it visually, the audio-call view shows it whole
+            const scale = Math.min(1, 480 / Math.max(w, h));
+            const c = document.createElement('canvas');
+            c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+            c.getContext('2d').drawImage(src, 0, 0, w, h, 0, 0, c.width, c.height);
+            PROFILE_EDIT.photo = c.toDataURL('image/jpeg', 0.8);
+            profileRenderPreview();
+        }
+        async function profileCameraButton() {
+            const v = document.getElementById('pm-video');
+            if (PROFILE_EDIT.stream) {
+                // second press: take the picture (mirrored like the preview)
+                const w = v.videoWidth, h = v.videoHeight;
+                if (w && h) {
+                    const c = document.createElement('canvas');
+                    c.width = w; c.height = h;
+                    const ctx = c.getContext('2d');
+                    ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(v, 0, 0, w, h);
+                    profileFromSource(c, w, h);
+                }
+                profileStopCamera();
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { document.getElementById('pm-file').click(); return; }
+            try {
+                PROFILE_EDIT.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false });
+                v.srcObject = PROFILE_EDIT.stream;
+                v.classList.remove('hidden');
+                v.play().catch(() => {});
+                document.querySelector('#pm-cam-btn span').textContent = 'Snap';
+            } catch (e) {
+                document.getElementById('pm-file').click();   // no camera access: pick or take a photo instead
+            }
+        }
+        function profileFileChosen(e) {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (!f) return;
+            const url = URL.createObjectURL(f);
+            const img = new Image();
+            img.onload = () => { profileFromSource(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+            img.src = url;
+        }
+        function profileRemovePhoto() { PROFILE_EDIT.photo = ''; profileRenderPreview(); }
+        function saveProfileEditor() {
+            MY_PROFILE = { name: cleanProfileName(document.getElementById('pm-name').value), photo: PROFILE_EDIT.photo };
+            try { localStorage.setItem('onechat-profile', JSON.stringify(MY_PROFILE)); } catch (e) {}
+            closeProfileEditor();
+            refreshProfileUI();
+            sendMyProfile();
+            showToast('Profile saved', 'success');
         }
 
         /**************************************************************************
@@ -1389,7 +1647,8 @@
 
             const toast = document.createElement('div');
             toast.className = `px-3.5 py-2.5 rounded-xl border shadow-2xl flex items-center gap-2.5 text-xs font-medium transition-all duration-300 ${colors[type] || colors.info}`;
-            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} shrink-0"></i><span>${message}</span>`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} shrink-0"></i><span></span>`;
+            toast.querySelector('span').textContent = message;
             container.appendChild(toast);
 
             setTimeout(() => {
@@ -2867,7 +3126,7 @@ if __name__ == "__main__":
             const msgDiv = document.createElement('div');
             msgDiv.className = `flex flex-col ${isSelf ? 'items-end' : 'items-start'}`;
             msgDiv.innerHTML = `
-                <span class="text-[9px] font-mono text-slate-400 mb-0.5">${sender}</span>
+                <span class="text-[9px] font-mono text-slate-400 mb-0.5">${escHtml(sender)}</span>
                 <div class="px-2.5 py-1.5 rounded-lg max-w-[85%] break-words ${isSelf ? 'bg-cyan-600/90 text-white' : 'bg-emerald-900/80 border border-emerald-500/40 text-emerald-100'}">
                     ${text.replace(/</g, '&lt;')}
                 </div>
@@ -2916,6 +3175,7 @@ if __name__ == "__main__":
         let incomingBytesReceived = 0;
 
         function handleIncomingP2PData(data) {
+            APP_STATE.lastRxAt = performance.now();
             APP_STATE.natTtlRemaining = APP_STATE.natTtlMax;
             spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.15);
 
@@ -2925,7 +3185,10 @@ if __name__ == "__main__":
                     if (parsed.type === 'CHAT') {
                         appendChatMessage(parsed.sender || getPeerRoleName(), parsed.text, false);
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
+                    } else if (parsed.type === 'ONECHAT_TYPING') {
+                        showPeerTyping(parsed.sender || getPeerRoleName(), !!parsed.typing);
                     } else if (parsed.type === 'ONECHAT_MSG') {
+                        showPeerTyping(null, false);
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
                     } else if (parsed.type === 'ONECHAT_SNAP') {
                         /* legacy inline snaps no longer used */
@@ -2939,6 +3202,10 @@ if __name__ == "__main__":
                         renderIncomingPeerVideoFrame(parsed);
                     } else if (parsed.type === 'ONECHAT_WEBRTC_RENEGOTIATE') {
                         handleIncomingWebRTCRenegotiation(parsed);
+                    } else if (parsed.type === 'PROFILE') {
+                        receivePeerProfile(parsed);
+                    } else if (parsed.type === 'HB') {
+                        /* heartbeat: lastRxAt already updated */
                     } else if (parsed.type === 'PING') {
                         if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
                             APP_STATE.dataChannel.send(JSON.stringify({ type: 'PONG', ts: parsed.ts }));
@@ -3074,6 +3341,8 @@ if __name__ == "__main__":
             const pipClasses = 'absolute bottom-20 right-4 w-28 h-40 sm:w-36 sm:h-52 rounded-2xl border-2 border-yellow-400 shadow-2xl overflow-hidden z-30 transition-all duration-300 bg-slate-950 cursor-pointer hover:scale-105';
             const fullClasses = 'absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden z-10 transition-all duration-300 bg-black';
 
+            const menuSwap = document.getElementById('menu-swap-pip');
+            if (menuSwap) menuSwap.classList.toggle('hidden', !(ONECHAT_STATE.inCall && ONECHAT_STATE.isVideoCall));
             const stage = document.getElementById('onechat-media-stage');
             const feedCol = document.getElementById('onechat-feed-col');
             if (stage) stage.classList.toggle('hidden', !ONECHAT_STATE.inCall);
@@ -3092,6 +3361,7 @@ if __name__ == "__main__":
                 return;
             }
 
+            updateAudioCallPeerPhoto();
             if (!ONECHAT_STATE.isVideoCall) {
                 // Audio call: no camera windows, only the peer avatar stage
                 remoteContainer.className = fullClasses;
@@ -3207,7 +3477,8 @@ if __name__ == "__main__":
             const subEl = document.getElementById('onechat-role-subtitle');
             if (titleEl) titleEl.textContent = peerName;
             if (subEl) {
-                subEl.innerHTML = `You are <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}">${myName}</strong>`;
+                subEl.innerHTML = `You are <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}"></strong>`;
+                subEl.querySelector('strong').textContent = myName;
             }
         }
 
@@ -3506,10 +3777,41 @@ if __name__ == "__main__":
                 ? `${getPeerRoleName()} wants to start a ${kind}` : `Waiting for ${getPeerRoleName()} to accept the ${kind}`;
             document.getElementById('onechat-call-modal-accept').classList.toggle('hidden', mode !== 'incoming');
             document.querySelector('#onechat-call-modal-decline span').textContent = mode === 'incoming' ? 'Decline' : 'Cancel';
+            fillAvatar(document.getElementById('call-modal-avatar'), PEER_PROFILE);
             document.getElementById('onechat-call-modal').classList.remove('hidden');
+            if (withVideo) startCallSelfPreview(); else stopCallSelfPreview();
+        }
+
+        // Your own camera under the ringing dialog (video calls only); closed again when the dialog closes
+        const CALL_PREVIEW = { stream: null, token: 0 };
+        async function startCallSelfPreview() {
+            stopCallSelfPreview();
+            const token = ++CALL_PREVIEW.token;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                if (token !== CALL_PREVIEW.token) { stream.getTracks().forEach(t => t.stop()); return; }
+                CALL_PREVIEW.stream = stream;
+                const v = document.getElementById('call-self-preview');
+                const mirror = document.getElementById('onechat-mirror-toggle');
+                v.classList.toggle('scale-x-[-1]', !mirror || mirror.checked);
+                v.srcObject = stream;
+                v.play().catch(() => {});
+                document.getElementById('call-self-wrap').classList.remove('hidden');
+            } catch (e) { /* no camera / permission refused: dialog works without preview */ }
+        }
+        function stopCallSelfPreview() {
+            CALL_PREVIEW.token++;
+            if (CALL_PREVIEW.stream) CALL_PREVIEW.stream.getTracks().forEach(t => t.stop());
+            CALL_PREVIEW.stream = null;
+            const v = document.getElementById('call-self-preview');
+            if (v) v.srcObject = null;
+            const w = document.getElementById('call-self-wrap');
+            if (w) w.classList.add('hidden');
         }
 
         function hideCallModal() {
+            stopCallSelfPreview();
             document.getElementById('onechat-call-modal').classList.add('hidden');
             if (ONECHAT_STATE.ringTimeout) { clearTimeout(ONECHAT_STATE.ringTimeout); ONECHAT_STATE.ringTimeout = null; }
         }
@@ -4406,12 +4708,38 @@ if __name__ == "__main__":
         function downloadAttachment(id) {
             const att = ATT_STORE.get(id);
             if (!att || att.mode !== 'download') return;
+            saveBlobSafely(att.url, att.name || 'file', att.mime);
+        }
+
+        /* Save a received file without ever leaving this page.
+           Opening a file in the same tab (e.g. iOS "View") unloads the page and kills the
+           WebRTC session, so: phones get the system share sheet ("Save to Files", open in app…),
+           everything else downloads via a link that opens in a NEW tab if the browser decides to show it. */
+        async function saveBlobSafely(urlOrBlob, name, mime) {
+            const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+            let blob = urlOrBlob instanceof Blob ? urlOrBlob : null;
+            if (touch && navigator.canShare && window.File) {
+                try {
+                    if (!blob) blob = await (await fetch(urlOrBlob)).blob();
+                    const file = new File([blob], name, { type: mime || blob.type || 'application/octet-stream' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                        return;
+                    }
+                } catch (e) {
+                    if (e && e.name === 'AbortError') return;   // user closed the share sheet
+                }
+            }
+            const url = blob ? URL.createObjectURL(blob) : urlOrBlob;
             const a = document.createElement('a');
-            a.href = att.url;
-            a.download = att.name || 'file';
+            a.href = url;
+            a.download = name;
+            a.target = '_blank';
+            a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            if (blob) setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
 
         /* ---------- Picking a file (any type) ---------- */
@@ -4615,18 +4943,286 @@ if __name__ == "__main__":
         }
 
         function forgetConnection() {
-            if (!confirm('Forget this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
+            if (!confirm('Burn this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
             sendOneChatPayload({ type: 'ONECHAT_FORGET', sender: getRoleName(APP_STATE.role) });
+            burstIntoFlames();
             setTimeout(() => {
                 wipeConversationLocally();
-                showToast('Conversation forgotten and disconnected.', 'info');
+                showToast('Conversation burned and disconnected.', 'info');
             }, 250);
         }
 
         function handleIncomingForget(msg) {
+            burstIntoFlames();
             wipeConversationLocally();
-            showToast(`${(msg && msg.sender) || getPeerRoleName()} forgot the conversation — disconnected.`, 'info');
+            showToast(`${(msg && msg.sender) || getPeerRoleName()} burned the conversation — disconnected.`, 'info');
         }
+
+        /* Full-screen fire for 3 s: flames rise from the bottom, then fade out */
+        function burstIntoFlames() {
+            const DURATION = 3000, FADE = 700;
+            const cv = document.createElement('canvas');
+            cv.style.cssText = 'position:fixed;inset:0;width:100vw;height:100vh;z-index:300;pointer-events:none;opacity:1;transition:opacity ' + FADE + 'ms ease-out';
+            document.body.appendChild(cv);
+            // draw at half resolution: cheaper on phones and the softness looks like fire
+            const W = cv.width = Math.max(160, Math.round(innerWidth / 2));
+            const H = cv.height = Math.max(240, Math.round(innerHeight / 2));
+            const ctx = cv.getContext('2d');
+            const sprite = document.createElement('canvas');
+            sprite.width = sprite.height = 64;
+            const sg = sprite.getContext('2d');
+            const grad = sg.createRadialGradient(32, 32, 0, 32, 32, 32);
+            grad.addColorStop(0, 'rgba(255,190,60,1)');
+            grad.addColorStop(0.3, 'rgba(255,110,15,0.75)');
+            grad.addColorStop(0.65, 'rgba(200,35,0,0.35)');
+            grad.addColorStop(1, 'rgba(120,0,0,0)');
+            sg.fillStyle = grad; sg.fillRect(0, 0, 64, 64);
+
+            const parts = [];
+            const start = performance.now();
+            let last = start;
+            function spawn(n, height) {
+                for (let i = 0; i < n; i++) {
+                    parts.push({
+                        x: Math.random() * W,
+                        y: H + 10,
+                        vy: -(H * (0.55 + Math.random() * 0.6) * height),   // px per second
+                        vx: (Math.random() - 0.5) * 20,
+                        size: 22 + Math.random() * 46,
+                        life: 1,
+                        decay: 0.55 + Math.random() * 0.5,                // per second
+                        phase: Math.random() * 6.28
+                    });
+                }
+            }
+            function frame(now) {
+                const dt = Math.min(0.05, (now - last) / 1000); last = now;
+                const t = (now - start) / DURATION;
+                // smoke-dark background that builds up, so the flames stand out
+                ctx.globalCompositeOperation = 'source-over';
+                ctx.fillStyle = 'rgba(25,6,0,' + Math.min(0.55, 0.15 + t * 0.6) + ')';
+                ctx.fillRect(0, 0, W, H);
+                if (t < 0.85) spawn(Math.round(W / 26), 0.6 + Math.min(1, t * 2) * 0.6);
+                ctx.globalCompositeOperation = 'lighter';
+                for (let i = parts.length - 1; i >= 0; i--) {
+                    const p = parts[i];
+                    p.y += p.vy * dt;
+                    p.x += (p.vx + Math.sin(now / 180 + p.phase) * 25) * dt;
+                    p.life -= p.decay * dt;
+                    if (p.life <= 0) { parts.splice(i, 1); continue; }
+                    const sz = p.size * (0.4 + p.life * 0.8);
+                    ctx.globalAlpha = Math.min(0.5, p.life * 0.6);
+                    ctx.drawImage(sprite, p.x - sz / 2, p.y - sz / 2, sz, sz * 1.5);
+                }
+                ctx.globalAlpha = 1;
+                if (now - start < DURATION) requestAnimationFrame(frame);
+                else {
+                    cv.style.opacity = '0';
+                    setTimeout(() => cv.remove(), FADE + 50);
+                }
+            }
+            requestAnimationFrame(frame);
+        }
+
+        /* ---------- Link health: heartbeat, loss detection, notification ---------- */
+        const LINK = { wasUp: false, broken: false, lastHb: 0 };
+        const LINK_TIMEOUT_MS = 12000;
+
+        function appendOneChatSystem(text, tone) {
+            const feed = document.getElementById('onechat-feed');
+            if (!feed) return;
+            const colors = tone === 'bad'
+                ? 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+                : 'bg-emerald-950/70 border-emerald-500/50 text-emerald-200';
+            const el = document.createElement('div');
+            el.className = `mx-auto max-w-[92%] text-center rounded-xl border px-3 py-2 text-[11px] font-semibold ${colors}`;
+            el.textContent = text;
+            feed.appendChild(el);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function linkHealthCheck() {
+            const dc = APP_STATE.dataChannel;
+            const pc = APP_STATE.rtcPeer;
+            const now = performance.now();
+            const open = !!(dc && dc.readyState === 'open');
+            if (open && now - LINK.lastHb > 3000) {
+                LINK.lastHb = now;
+                try { dc.send('{"type":"HB"}'); } catch (e) {}
+            }
+            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; sendMyProfile(); refreshProfileUI(); }
+            if (!LINK.wasUp) return;
+            const pcBad = pc && ['failed', 'disconnected', 'closed'].includes(pc.connectionState || pc.iceConnectionState);
+            const silent = now - (APP_STATE.lastRxAt || now) > LINK_TIMEOUT_MS;
+            if (!open) { LINK.wasUp = false; LINK.broken = false; return; }   // a closed channel is reported by the connect logic
+            const broken = pcBad || silent;
+            if (broken && !LINK.broken) {
+                LINK.broken = true;
+                const peer = getPeerRoleName();
+                appendOneChatSystem(`⚠️ Lost contact with ${peer}. Messages and files can't be delivered right now. If it doesn't come back, use Connect to pair again.`, 'bad');
+                showToast(`Connection to ${peer} lost`, 'warn');
+                if (typeof basicUpdateStatus === 'function') basicUpdateStatus();
+            } else if (!broken && LINK.broken) {
+                LINK.broken = false;
+                appendOneChatSystem(`✅ Connection to ${getPeerRoleName()} is back.`, 'good');
+                showToast('Connection restored', 'success');
+                if (typeof basicUpdateStatus === 'function') basicUpdateStatus();
+            }
+        }
+        setInterval(linkHealthCheck, 1000);
+        // Coming back from another app / a system dialog: check right away
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(linkHealthCheck, 1500); });
+        // Warn before anything would unload the page and drop the session
+        window.addEventListener('beforeunload', (e) => {
+            const dc = APP_STATE.dataChannel;
+            if (window.__ocReloading) return;
+            if (dc && dc.readyState === 'open') { e.preventDefault(); e.returnValue = ''; }
+        });
+
+        refreshProfileUI();
+        document.getElementById('pm-name').addEventListener('input', () => profileRenderPreview());
+
+        /* ---------- Build info (stamped by .github/workflows/pages.yml) ---------- */
+        const BUILD_INFO = { commit: '__BUILD_COMMIT__', time: '__BUILD_TIME__' };
+        (function showBuildInfo() {
+            const cEl = document.getElementById('build-commit');
+            const tEl = document.getElementById('build-time');
+            if (!cEl || !tEl) return;
+            const stamped = !BUILD_INFO.commit.startsWith('__');
+            if (!stamped) { cEl.textContent = 'local'; tEl.textContent = 'not built'; return; }
+            cEl.textContent = BUILD_INFO.commit;
+            const d = new Date(BUILD_INFO.time);
+            tEl.textContent = isNaN(d) ? BUILD_INFO.time : new Intl.DateTimeFormat('en-GB', {
+                dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Oslo'
+            }).format(d);
+        })();
+
+        function toggleAboutPopover(e) {
+            if (e) e.stopPropagation();
+            const pop = document.getElementById('about-popover');
+            document.getElementById('about-commit').textContent = document.getElementById('build-commit').textContent;
+            document.getElementById('about-time').textContent = document.getElementById('build-time').textContent;
+            pop.classList.toggle('hidden');
+        }
+        document.addEventListener('click', (e) => {
+            const pop = document.getElementById('about-popover');
+            if (pop && !pop.classList.contains('hidden') && !pop.contains(e.target)) pop.classList.add('hidden');
+        });
+
+        /* ---------- Tap the empty space on the Connect screen 4 times: full refresh ---------- */
+        (function initFourTapRefresh() {
+            const main = document.getElementById('basic-connect');
+            if (!main) return;
+            const blank = main.firstElementChild;
+            let taps = [];
+            main.addEventListener('pointerup', (e) => {
+                if (e.target !== main && e.target !== blank) { taps = []; return; }   // only empty space counts
+                const now = Date.now();
+                taps = taps.filter(t => now - t < 1500);
+                taps.push(now);
+                if (taps.length >= 4) { taps = []; fullRefresh(); }
+            });
+        })();
+
+        async function fullRefresh() {
+            const dc = APP_STATE.dataChannel;
+            if (dc && dc.readyState === 'open' && !confirm('Refreshing ends the current connection. Refresh now?')) return;
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 40%,#0e2440,#050811 70%);color:#e2e8f0;font:600 14px Inter,system-ui,sans-serif;animation:oc-fade-in .3s ease-out';
+            ov.innerHTML = `
+                <div style="position:relative;width:96px;height:96px;animation:oc-pop .35s ease-out">
+                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin .9s linear infinite"></div>
+                    <img src="icons/logo.webp" alt="" style="position:absolute;inset:14px;width:68px;height:68px;border-radius:16px;object-fit:cover">
+                </div>
+                <div>Refreshing OneChat…</div>
+                <div style="font-weight:400;font-size:11px;color:#64748b">Getting the latest version</div>`;
+            document.body.appendChild(ov);
+            const minShow = new Promise(r => setTimeout(r, 1100));
+            // pull a fresh copy past any cache before reloading
+            try { await fetch(location.pathname + '?r=' + Date.now(), { cache: 'reload' }); } catch (e) {}
+            await minShow;
+            window.__ocReloading = true;
+            location.replace(location.pathname + '?r=' + Date.now().toString(36));
+        }
+
+        /* ---------- New-version check (home-screen apps stay loaded for a long time) ---------- */
+        const UPDATE = { checking: false, lastCheck: 0, notified: false };
+        async function checkForNewVersion() {
+            if (BUILD_INFO.commit.startsWith('__') || UPDATE.checking || UPDATE.notified) return;
+            if (Date.now() - UPDATE.lastCheck < 30000) return;
+            UPDATE.checking = true; UPDATE.lastCheck = Date.now();
+            try {
+                const res = await fetch(location.pathname + '?check=' + Date.now(), { cache: 'no-store' });
+                const m = res.ok && (await res.text()).match(/BUILD_INFO = \{ commit: '([0-9a-f]{7,40})'/);
+                if (m && m[1] !== BUILD_INFO.commit) onNewVersion(m[1]);
+            } catch (e) { /* offline: try again later */ }
+            UPDATE.checking = false;
+        }
+        function reloadToVersion(sha) { window.__ocReloading = true; location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
+        function onNewVersion(sha) {
+            const dc = APP_STATE.dataChannel;
+            if (!(dc && dc.readyState === 'open')) { reloadToVersion(sha); return; }   // nobody connected: just update
+            UPDATE.notified = true;
+            const bar = document.createElement('div');
+            bar.className = 'fixed bottom-20 left-1/2 -translate-x-1/2 z-[95] flex items-center gap-2 px-3 py-2 rounded-xl bg-slate-900 border border-cyan-500/50 text-xs text-slate-200 shadow-2xl';
+            bar.innerHTML = '<span>New version available</span><button type="button" class="px-2.5 py-1 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white font-semibold">Reload</button><button type="button" class="text-slate-400 hover:text-white px-1" title="Later">✕</button>';
+            const [reloadBtn, laterBtn] = bar.querySelectorAll('button');
+            reloadBtn.onclick = () => { if (confirm('Reloading ends the current connection. Reload now?')) reloadToVersion(sha); };
+            laterBtn.onclick = () => bar.remove();
+            document.body.appendChild(bar);
+        }
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) checkForNewVersion(); });
+        window.addEventListener('pageshow', () => checkForNewVersion());
+        setInterval(checkForNewVersion, 5 * 60 * 1000);
+
+        /* ---------- Typing indicator ---------- */
+        const TYPING = { sentAt: 0, active: false, stopTimer: null, peerTimer: null };
+
+        function setOwnTyping(on) {
+            const dc = APP_STATE.dataChannel;
+            if (!dc || dc.readyState !== 'open') return;
+            const now = performance.now();
+            if (on) {
+                // announce at most every 2.5 s while typing
+                if (!TYPING.active || now - TYPING.sentAt > 2500) {
+                    TYPING.active = true; TYPING.sentAt = now;
+                    try { dc.send(JSON.stringify({ type: 'ONECHAT_TYPING', typing: true, sender: getRoleName(APP_STATE.role) })); } catch (e) {}
+                }
+                clearTimeout(TYPING.stopTimer);
+                TYPING.stopTimer = setTimeout(() => setOwnTyping(false), 4000);
+            } else {
+                clearTimeout(TYPING.stopTimer);
+                if (!TYPING.active) return;
+                TYPING.active = false;
+                try { dc.send(JSON.stringify({ type: 'ONECHAT_TYPING', typing: false, sender: getRoleName(APP_STATE.role) })); } catch (e) {}
+            }
+        }
+
+        function showPeerTyping(sender, on) {
+            const feed = document.getElementById('onechat-feed');
+            let el = document.getElementById('onechat-typing');
+            clearTimeout(TYPING.peerTimer);
+            if (!on) { if (el) el.remove(); return; }
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'onechat-typing';
+                el.className = 'pl-3 border-l-4 border-yellow-400/50 bg-slate-900/50 rounded-r-xl py-2 px-3 flex items-center gap-2 text-[11px] text-slate-300 italic';
+                el.innerHTML = '<span class="typing-name font-extrabold not-italic uppercase tracking-wider text-yellow-300/80"></span><span>is typing</span><span class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.15s"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.3s"></span></span>';
+            }
+            el.querySelector('.typing-name').textContent = sender || getPeerRoleName();
+            const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
+            feed.appendChild(el);
+            if (nearBottom) feed.scrollTop = feed.scrollHeight;
+            // safety: hide if no update arrives (e.g. the other side closed the app mid-typing)
+            TYPING.peerTimer = setTimeout(() => showPeerTyping(null, false), 6000);
+        }
+
+        (function initTypingInput() {
+            const input = document.getElementById('onechat-input');
+            if (!input) return;
+            input.addEventListener('input', () => setOwnTyping(input.value.trim().length > 0));
+            input.addEventListener('blur', () => setOwnTyping(false));
+        })();
 
         function appendOneChatEntry(sender, text, isSelf, kind = 'chat') {
             const feed = document.getElementById('onechat-feed');
@@ -4642,12 +5238,14 @@ if __name__ == "__main__":
             item.className = `pl-3 border-l-4 ${barColor} bg-slate-900/75 rounded-r-xl py-2 px-3 transition-all duration-300`;
             item.innerHTML = `
                 <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${nameColor}">${sender}</span>
+                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${nameColor}">${escHtml(sender)}</span>
                     <span class="text-[9px] font-mono text-slate-500">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 </div>
                 <div class="text-slate-100 text-xs leading-relaxed break-words">${text.replace(/</g, '&lt;')}</div>
             `;
             feed.appendChild(item);
+            const typingEl = document.getElementById('onechat-typing');
+            if (typingEl) feed.appendChild(typingEl);
             feed.scrollTop = feed.scrollHeight;
 
             if (isEphemeral && kind === 'chat') {
@@ -4680,6 +5278,7 @@ if __name__ == "__main__":
             const text = input.value.trim();
             if (!text) return;
             input.value = '';
+            setOwnTyping(false);
 
             const myName = getRoleName(APP_STATE.role);
             const peerName = getPeerRoleName();
@@ -4689,7 +5288,9 @@ if __name__ == "__main__":
             sendOneChatPayload({ type: 'ONECHAT_MSG', sender: myName, text });
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0);
 
-            if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
+            if (APP_STATE.rtcPeer && (LINK.broken || !APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open')) {
+                appendOneChatSystem('⚠️ Not delivered — no connection to ' + peerName + '.', 'bad');
+            } else if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
                 setTimeout(() => {
                     spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.2);
                     appendOneChatEntry(peerName, `👻 Read on OneChat: "${text}" (Direct P2P with no middleman)`, false, 'chat');
@@ -5127,6 +5728,7 @@ if __name__ == "__main__":
                 s: pick(/a=setup:(.+)/),
                 c: candidates
             };
+            if (MY_PROFILE.name) obj.n = encodeURIComponent(MY_PROFILE.name);
             return 'OC1:' + btoa(JSON.stringify(obj));
         }
 
@@ -5182,14 +5784,32 @@ if __name__ == "__main__":
             return c;
         }
 
+        // Public address of the app (used in join links)
+        function oneChatAppUrl() {
+            return /^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://joranlager.github.io/OneChat/';
+        }
+        // An Offer as a link: scanning it with any camera opens OneChat and joins right away
+        // The code is made URL-safe (no + / = :) so chat apps keep the whole link clickable
+        function joinLinkFor(code) {
+            const safe = code.replace(/^OC1:/, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return oneChatAppUrl() + '#join=' + safe;
+        }
+        function codeFromJoinParam(v) {
+            v = String(v || '').trim();
+            if (v.startsWith('OC1:')) return v;                       // older links
+            let b64 = v.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            return 'OC1:' + b64;
+        }
+
         function basicShowCode(kind, code) {
             BASIC.kind = kind;
             BASIC.code = code;
             const isOffer = kind === 'offer';
             BASIC.qrCanvas = basicMakeQrCanvas(
-                code,
-                isOffer ? 'OneChat — Offer' : 'OneChat — Answer',
-                isOffer ? 'Scan with OneChat to connect' : 'Scan with OneChat to finish connecting'
+                isOffer ? joinLinkFor(code) : code,
+                isOffer ? 'OneChat — Join me' : 'OneChat — Answer',
+                isOffer ? 'Scan with your camera to open OneChat and join' : 'Scan with OneChat to finish connecting'
             );
             basicEl('basic-qr-img').src = BASIC.qrCanvas.toDataURL('image/png');
         }
@@ -5233,7 +5853,12 @@ if __name__ == "__main__":
             const pairing = !connected && (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer');
             const ice = APP_STATE.rtcPeer ? APP_STATE.rtcPeer.iceConnectionState : '';
 
-            if (connected) {
+            if (connected && typeof LINK !== 'undefined' && LINK.broken) {
+                pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-amber-950/70 border border-amber-500/50 text-amber-300 font-mono';
+                dot.className = 'fa-solid fa-link-slash text-sm text-amber-400 animate-pulse';
+                text.textContent = 'NO RESPONSE';
+                lock.className = 'fa-solid fa-lock text-[10px] text-amber-400';
+            } else if (connected) {
                 pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 font-mono';
                 dot.className = 'fa-solid fa-link text-sm text-emerald-400';
                 text.textContent = 'CONNECTED';
@@ -5254,9 +5879,9 @@ if __name__ == "__main__":
             const connIcon = basicEl('basic-tab-connect-icon');
             const connLabel = basicEl('basic-tab-connect-label');
             if (connected) {
-                connTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-rose-300 hover:bg-rose-950/60';
-                connIcon.className = 'fa-solid fa-link-slash';
-                connLabel.textContent = 'Forget';
+                connTab.className = 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-orange-300 hover:bg-orange-950/60';
+                connIcon.className = 'fa-solid fa-fire text-orange-400';
+                connLabel.textContent = 'Burn';
             } else {
                 connTab.className = BASIC.tab === 'connect'
                     ? 'px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow'
@@ -5285,6 +5910,7 @@ if __name__ == "__main__":
                 showToast('Connected! Open OneChat to start talking.', 'success');
             } else if (!connected && BASIC.step === 'connected') {
                 showToast('The connection was closed.', 'warn');
+                appendOneChatSystem('⚠️ The connection was closed. Use Connect to pair again.', 'bad');
                 basicReset(true);
             } else {
                 basicUpdateStatus();
@@ -5295,6 +5921,7 @@ if __name__ == "__main__":
         }
 
         function basicReset(closePeer) {
+            if (closePeer) clearPeerProfile();
             basicStopCamera();
             basicStopPunching();
             if (closePeer) {
@@ -5383,7 +6010,10 @@ if __name__ == "__main__":
 
         // Accepts the text of a scanned/pasted code and routes it by type
         async function basicHandleCode(raw) {
-            const text = (raw || '').trim();
+            let text = (raw || '').trim();
+            try { text = decodeURIComponent(text); } catch (e) {}
+            const jm = text.match(/#join=([A-Za-z0-9\-_+\/=:]+)/);
+            if (jm) text = codeFromJoinParam(jm[1]);
             const idx = text.indexOf('OC1:');
             if (idx < 0) {
                 showToast('That does not look like a OneChat QR code.', 'warn');
@@ -5397,6 +6027,10 @@ if __name__ == "__main__":
             } catch (e) {
                 showToast('This QR code is damaged or incomplete. Try again.', 'error');
                 return false;
+            }
+            if (o.n && !BASIC.busy && BASIC.step !== 'connected') {
+                try { PEER_PROFILE = { name: cleanProfileName(decodeURIComponent(o.n)), photo: '' }; } catch (e) {}
+                refreshProfileUI();
             }
             if (BASIC.busy) return false;
             if (o.t === 'o') {
@@ -5678,37 +6312,115 @@ if __name__ == "__main__":
         function basicInit() {
             let mode = 'basic';
             try { if (localStorage.getItem('onechat-view-mode') === 'advanced') mode = 'advanced'; } catch (e) {}
+            const join = location.hash.startsWith('#join=') ? location.hash.slice(6) : '';
+            if (join) mode = 'basic';
             setViewMode(mode);
             setInterval(basicPoll, 500);
+            if (join) {
+                // drop the code from the address so a reload does not re-join
+                history.replaceState(null, '', location.pathname + location.search);
+                basicShowTab('connect', true);
+                setTimeout(() => basicHandleCode('#join=' + join), 300);
+            }
         }
 
         /* ----- Header QR code: copy as an image so it can be pasted straight into a chat app ----- */
         let siteQrCanvas = null;
+
+        // Makes (or reuses) an Offer and returns its join-link QR canvas; null when connected
+        async function prepareJoinQrCanvas() {
+            if (basicIsConnected() || !document.body.classList.contains('basic-mode')) return null;
+            basicShowTab('connect', true);
+            if (!(BASIC.step === 'host-offer' && BASIC.kind === 'offer' && BASIC.qrCanvas)) {
+                await basicStartHost();
+            }
+            return (BASIC.step === 'host-offer' && BASIC.qrCanvas) ? BASIC.qrCanvas : null;
+        }
+
+        // Top-left QR icon: a "Join me" dialog with the QR image and the direct join link
         async function copySiteQr() {
-            if (!siteQrCanvas) {
-                siteQrCanvas = basicMakeQrCanvas('https://joranlager.github.io/OneChat/', 'OneChat', 'Scan to open the app');
+            closeJoinMeDialog();
+            const m = document.createElement('div');
+            m.id = 'join-me-modal';
+            m.className = 'fixed inset-0 z-[90] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
+            m.innerHTML = `
+                <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-3 shadow-2xl text-xs text-slate-200">
+                    <div class="flex items-center justify-between">
+                        <h3 id="jm-title" class="font-bold text-sm text-white">Join me</h3>
+                        <button type="button" data-jm="close" class="text-slate-400 hover:text-white p-1" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="rounded-2xl bg-white p-2 flex items-center justify-center min-h-[200px]">
+                        <img id="jm-img" alt="Join me QR code" class="hidden w-full max-w-[260px]">
+                        <i id="jm-spin" class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-400"></i>
+                    </div>
+                    <p id="jm-hint" class="text-[11px] text-slate-400">Send the image or the link. Scanning or tapping it opens OneChat and joins you.</p>
+                    <input id="jm-link" readonly class="w-full min-h-[38px] bg-slate-950 border border-slate-700 rounded-lg px-3 font-mono text-[11px] text-cyan-200 truncate" value="Preparing…">
+                    <div class="grid grid-cols-3 gap-2">
+                        <button type="button" data-jm="share" class="min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                        <button type="button" data-jm="image" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-image"></i> Copy image</button>
+                        <button type="button" data-jm="link" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-link"></i> Copy link</button>
+                    </div>
+                </div>`;
+            document.body.appendChild(m);
+            const linkEl = m.querySelector('#jm-link');
+            linkEl.addEventListener('focus', () => linkEl.select());
+
+            const canvas = await prepareJoinQrCanvas();
+            let link, qr;
+            if (canvas) {
+                link = joinLinkFor(BASIC.code); qr = canvas;
+            } else {
+                link = oneChatAppUrl();
+                if (!siteQrCanvas) siteQrCanvas = basicMakeQrCanvas(link, 'OneChat', 'Scan to open the app');
+                qr = siteQrCanvas;
+                m.querySelector('#jm-title').textContent = 'OneChat';
+                m.querySelector('#jm-hint').textContent = 'You are connected, so this is a plain link to the app.';
             }
-            const blob = await new Promise((resolve) => siteQrCanvas.toBlob(resolve, 'image/png'));
-            try {
-                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-                showToast('QR code image copied — paste it into any chat app.', 'success');
-                return;
-            } catch (e) { /* try sharing, then saving */ }
-            try {
-                const file = new File([blob], 'onechat-qr.png', { type: 'image/png' });
-                if (navigator.canShare && navigator.canShare({ files: [file] })) {
-                    await navigator.share({ files: [file], title: 'OneChat', text: 'https://joranlager.github.io/OneChat/' });
-                    return;
+            if (!document.body.contains(m)) return;
+            const blob = await new Promise(res => qr.toBlob(res, 'image/png'));
+            const file = new File([blob], 'onechat-join.png', { type: 'image/png' });
+            m.querySelector('#jm-img').src = qr.toDataURL('image/png');
+            m.querySelector('#jm-img').classList.remove('hidden');
+            m.querySelector('#jm-spin').remove();
+            linkEl.value = link;
+            const canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+
+            m.addEventListener('click', async (e) => {
+                if (e.target === m) { closeJoinMeDialog(); return; }
+                const btn = e.target.closest('[data-jm]');
+                if (!btn) return;
+                const act = btn.dataset.jm;
+                if (act === 'close') closeJoinMeDialog();
+                else if (act === 'link') {
+                    try { await navigator.clipboard.writeText(link); showToast('Join link copied', 'success'); }
+                    catch (err) { linkEl.focus(); linkEl.select(); showToast('Select the link and copy it', 'info'); }
+                } else if (act === 'image') {
+                    // only the QR image
+                    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); showToast('QR image copied', 'success'); }
+                    catch (err) { saveBlobSafely(blob, 'onechat-join.png', 'image/png'); }
+                } else if (act === 'share') {
+                    // a formatted message: the QR image with the join link
+                    const text = 'Join me on OneChat — tap the link or scan the QR code:\n' + link;
+                    try {
+                        if (canShare) { await navigator.share({ files: [file], title: 'OneChat — Join me', text }); return; }
+                        if (navigator.share) { await navigator.share({ title: 'OneChat — Join me', text }); return; }
+                    } catch (err) { if (err && err.name === 'AbortError') return; }
+                    // no share sheet here: copy the formatted message (image wrapped in the link, plus the link)
+                    try {
+                        const html = `<p>Join me on OneChat — tap the link or scan the QR code:</p><p><a href="${link}"><img src="${qr.toDataURL('image/png')}" alt="Join me on OneChat" width="280"></a></p><p><a href="${link}">${link}</a></p>`;
+                        await navigator.clipboard.write([new ClipboardItem({
+                            'text/html': new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob([text], { type: 'text/plain' }),
+                        })]);
+                        showToast('Message with QR image and link copied — paste it', 'success');
+                    } catch (err) { showToast('Sharing is not available here — use Copy image and Copy link', 'warn'); }
                 }
-            } catch (e) {
-                if (e && e.name === 'AbortError') return;
-            }
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url; a.download = 'onechat-qr.png';
-            document.body.appendChild(a); a.click(); document.body.removeChild(a);
-            setTimeout(() => URL.revokeObjectURL(url), 2000);
-            showToast('Copying images is blocked here, so the QR code image was saved instead.', 'warn');
+            });
+        }
+
+        function closeJoinMeDialog() {
+            const m = document.getElementById('join-me-modal');
+            if (m) m.remove();
         }
 
         // Start Everything on Window Load
