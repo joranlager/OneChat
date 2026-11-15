@@ -5392,7 +5392,18 @@ if __name__ == "__main__":
             return /^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://joranlager.github.io/OneChat/';
         }
         // An Offer as a link: scanning it with any camera opens OneChat and joins right away
-        function joinLinkFor(code) { return oneChatAppUrl() + '#join=' + code; }
+        // The code is made URL-safe (no + / = :) so chat apps keep the whole link clickable
+        function joinLinkFor(code) {
+            const safe = code.replace(/^OC1:/, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            return oneChatAppUrl() + '#join=' + safe;
+        }
+        function codeFromJoinParam(v) {
+            v = String(v || '').trim();
+            if (v.startsWith('OC1:')) return v;                       // older links
+            let b64 = v.replace(/-/g, '+').replace(/_/g, '/');
+            while (b64.length % 4) b64 += '=';
+            return 'OC1:' + b64;
+        }
 
         function basicShowCode(kind, code) {
             BASIC.kind = kind;
@@ -5604,6 +5615,8 @@ if __name__ == "__main__":
         async function basicHandleCode(raw) {
             let text = (raw || '').trim();
             try { text = decodeURIComponent(text); } catch (e) {}
+            const jm = text.match(/#join=([A-Za-z0-9\-_+\/=:]+)/);
+            if (jm) text = codeFromJoinParam(jm[1]);
             const idx = text.indexOf('OC1:');
             if (idx < 0) {
                 showToast('That does not look like a OneChat QR code.', 'warn');
@@ -5910,7 +5923,7 @@ if __name__ == "__main__":
                 // drop the code from the address so a reload does not re-join
                 history.replaceState(null, '', location.pathname + location.search);
                 basicShowTab('connect', true);
-                setTimeout(() => basicHandleCode(join), 300);
+                setTimeout(() => basicHandleCode('#join=' + join), 300);
             }
         }
 
@@ -5947,7 +5960,7 @@ if __name__ == "__main__":
                     <input id="jm-link" readonly class="w-full min-h-[38px] bg-slate-950 border border-slate-700 rounded-lg px-3 font-mono text-[11px] text-cyan-200 truncate" value="Preparing…">
                     <div class="grid grid-cols-3 gap-2">
                         <button type="button" data-jm="share" class="min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-share-nodes"></i> Share</button>
-                        <button type="button" data-jm="image" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-copy"></i> Copy both</button>
+                        <button type="button" data-jm="image" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-image"></i> Copy image</button>
                         <button type="button" data-jm="link" class="min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold flex items-center justify-center gap-1.5"><i class="fa-solid fa-link"></i> Copy link</button>
                     </div>
                 </div>`;
@@ -5974,7 +5987,6 @@ if __name__ == "__main__":
             m.querySelector('#jm-spin').remove();
             linkEl.value = link;
             const canShare = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
-            if (!navigator.share) m.querySelector('[data-jm="share"]').classList.add('hidden');
 
             m.addEventListener('click', async (e) => {
                 if (e.target === m) { closeJoinMeDialog(); return; }
@@ -5986,25 +5998,25 @@ if __name__ == "__main__":
                     try { await navigator.clipboard.writeText(link); showToast('Join link copied', 'success'); }
                     catch (err) { linkEl.focus(); linkEl.select(); showToast('Select the link and copy it', 'info'); }
                 } else if (act === 'image') {
-                    try {
-                        // image AND link in one copy: rich editors paste both (clickable image + link),
-                        // plain-text fields get the link, image-only fields get the picture
-                        const html = `<a href="${link}"><img src="${qr.toDataURL('image/png')}" alt="Join me on OneChat"></a><br><a href="${link}">Join me on OneChat</a>`;
-                        await navigator.clipboard.write([new ClipboardItem({
-                            'image/png': blob,
-                            'text/html': new Blob([html], { type: 'text/html' }),
-                            'text/plain': new Blob(['Join me on OneChat: ' + link], { type: 'text/plain' }),
-                        })]);
-                        showToast('Image and link copied — paste into your message', 'success');
-                    } catch (err) {
-                        try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); showToast('Join image copied', 'success'); }
-                        catch (err2) { saveBlobSafely(blob, 'onechat-join.png', 'image/png'); }
-                    }
+                    // only the QR image
+                    try { await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]); showToast('QR image copied', 'success'); }
+                    catch (err) { saveBlobSafely(blob, 'onechat-join.png', 'image/png'); }
                 } else if (act === 'share') {
+                    // a formatted message: the QR image with the join link
+                    const text = 'Join me on OneChat — tap the link or scan the QR code:\n' + link;
                     try {
-                        if (canShare) await navigator.share({ files: [file], title: 'OneChat — Join me', text: 'Join me on OneChat: ' + link });
-                        else await navigator.share({ title: 'OneChat — Join me', text: 'Join me on OneChat', url: link });
-                    } catch (err) { /* closed the share sheet */ }
+                        if (canShare) { await navigator.share({ files: [file], title: 'OneChat — Join me', text }); return; }
+                        if (navigator.share) { await navigator.share({ title: 'OneChat — Join me', text }); return; }
+                    } catch (err) { if (err && err.name === 'AbortError') return; }
+                    // no share sheet here: copy the formatted message (image wrapped in the link, plus the link)
+                    try {
+                        const html = `<p>Join me on OneChat — tap the link or scan the QR code:</p><p><a href="${link}"><img src="${qr.toDataURL('image/png')}" alt="Join me on OneChat" width="280"></a></p><p><a href="${link}">${link}</a></p>`;
+                        await navigator.clipboard.write([new ClipboardItem({
+                            'text/html': new Blob([html], { type: 'text/html' }),
+                            'text/plain': new Blob([text], { type: 'text/plain' }),
+                        })]);
+                        showToast('Message with QR image and link copied — paste it', 'success');
+                    } catch (err) { showToast('Sharing is not available here — use Copy image and Copy link', 'warn'); }
                 }
             });
         }
