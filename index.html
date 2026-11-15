@@ -12,17 +12,17 @@
     <meta property="og:title" content="OneChat — Join me">
     <meta property="og:description" content="Tap to open OneChat and join a private, direct chat. No servers, no accounts.">
     <meta property="og:url" content="https://joranlager.github.io/OneChat/">
-    <meta property="og:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png">
+    <meta property="og:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png?v=2">
     <meta property="og:image:width" content="512">
     <meta property="og:image:height" content="512">
     <meta property="og:image:alt" content="OneChat logo">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="OneChat — Join me">
     <meta name="twitter:description" content="Tap to open OneChat and join a private, direct chat.">
-    <meta name="twitter:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png">
-    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
-    <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png">
-    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png">
+    <meta name="twitter:image" content="https://joranlager.github.io/OneChat/icons/icon-512.png?v=2">
+    <link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png?v=2">
+    <link rel="icon" type="image/png" sizes="64x64" href="icons/favicon-64.png?v=2">
+    <link rel="apple-touch-icon" sizes="180x180" href="icons/apple-touch-icon.png?v=2">
     <link rel="manifest" href="manifest.webmanifest">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="mobile-web-app-capable" content="yes">
@@ -199,7 +199,7 @@
                     <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
                 </button>
                 <button type="button" onclick="toggleAboutPopover(event)" title="About OneChat" aria-label="About OneChat" class="flex items-center min-w-0 text-left rounded-lg hover:bg-white/5 transition">
-                    <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
+                    <img src="icons/logo.webp?v=2" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
                     <div class="hidden sm:block pl-2 min-w-0">
                         <div class="font-bold text-sm text-white leading-tight">OneChat</div>
                         <div class="text-[10px] text-slate-400 leading-tight truncate">Direct P2P chat — no servers</div>
@@ -355,7 +355,7 @@
                 <button type="button" onclick="copySiteQr()" title="Join me: a QR image and link that let someone join you" aria-label="Show Join me QR code and link" class="self-center -mr-2 sm:-mr-3 cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
                     <div id="site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
                 </button>
-                <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
+                <img src="icons/logo.webp?v=2" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
                 <div class="min-w-0">
                     <div class="flex items-center gap-1.5">
                         <h1 class="font-bold text-xs sm:text-base tracking-tight text-white truncate">NAT HOLE PUNCH <span class="text-cyan-400 font-mono text-[10px] sm:text-xs px-1.5 py-0.5 rounded bg-cyan-950/80 border border-cyan-500/30">3D P2P</span></h1>
@@ -5351,7 +5351,7 @@ if __name__ == "__main__":
             ov.innerHTML = `
                 <div style="position:relative;width:96px;height:96px;animation:oc-pop .35s ease-out">
                     <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin .9s linear infinite"></div>
-                    <img src="icons/logo.webp" alt="" style="position:absolute;inset:14px;width:68px;height:68px;border-radius:16px;object-fit:cover">
+                    <img src="icons/logo.webp?v=2" alt="" style="position:absolute;inset:14px;width:68px;height:68px;border-radius:16px;object-fit:cover">
                 </div>
                 <div>Refreshing OneChat…</div>
                 <div style="font-weight:400;font-size:11px;color:#64748b">Getting the latest version</div>`;
