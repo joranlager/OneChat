@@ -2916,6 +2916,7 @@ if __name__ == "__main__":
         let incomingBytesReceived = 0;
 
         function handleIncomingP2PData(data) {
+            APP_STATE.lastRxAt = performance.now();
             APP_STATE.natTtlRemaining = APP_STATE.natTtlMax;
             spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.15);
 
@@ -2939,6 +2940,8 @@ if __name__ == "__main__":
                         renderIncomingPeerVideoFrame(parsed);
                     } else if (parsed.type === 'ONECHAT_WEBRTC_RENEGOTIATE') {
                         handleIncomingWebRTCRenegotiation(parsed);
+                    } else if (parsed.type === 'HB') {
+                        /* heartbeat: lastRxAt already updated */
                     } else if (parsed.type === 'PING') {
                         if (APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open') {
                             APP_STATE.dataChannel.send(JSON.stringify({ type: 'PONG', ts: parsed.ts }));
@@ -4014,12 +4017,38 @@ if __name__ == "__main__":
         function downloadAttachment(id) {
             const att = ATT_STORE.get(id);
             if (!att || att.mode !== 'download') return;
+            saveBlobSafely(att.url, att.name || 'file', att.mime);
+        }
+
+        /* Save a received file without ever leaving this page.
+           Opening a file in the same tab (e.g. iOS "View") unloads the page and kills the
+           WebRTC session, so: phones get the system share sheet ("Save to Files", open in app…),
+           everything else downloads via a link that opens in a NEW tab if the browser decides to show it. */
+        async function saveBlobSafely(urlOrBlob, name, mime) {
+            const touch = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+            let blob = urlOrBlob instanceof Blob ? urlOrBlob : null;
+            if (touch && navigator.canShare && window.File) {
+                try {
+                    if (!blob) blob = await (await fetch(urlOrBlob)).blob();
+                    const file = new File([blob], name, { type: mime || blob.type || 'application/octet-stream' });
+                    if (navigator.canShare({ files: [file] })) {
+                        await navigator.share({ files: [file] });
+                        return;
+                    }
+                } catch (e) {
+                    if (e && e.name === 'AbortError') return;   // user closed the share sheet
+                }
+            }
+            const url = blob ? URL.createObjectURL(blob) : urlOrBlob;
             const a = document.createElement('a');
-            a.href = att.url;
-            a.download = att.name || 'file';
+            a.href = url;
+            a.download = name;
+            a.target = '_blank';
+            a.rel = 'noopener';
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
+            if (blob) setTimeout(() => URL.revokeObjectURL(url), 60000);
         }
 
         /* ---------- Picking a file (any type) ---------- */
@@ -4231,6 +4260,60 @@ if __name__ == "__main__":
             showToast(`${(msg && msg.sender) || getPeerRoleName()} forgot the conversation — disconnected.`, 'info');
         }
 
+        /* ---------- Link health: heartbeat, loss detection, notification ---------- */
+        const LINK = { wasUp: false, broken: false, lastHb: 0 };
+        const LINK_TIMEOUT_MS = 12000;
+
+        function appendOneChatSystem(text, tone) {
+            const feed = document.getElementById('onechat-feed');
+            if (!feed) return;
+            const colors = tone === 'bad'
+                ? 'bg-rose-950/80 border-rose-500/60 text-rose-200'
+                : 'bg-emerald-950/70 border-emerald-500/50 text-emerald-200';
+            const el = document.createElement('div');
+            el.className = `mx-auto max-w-[92%] text-center rounded-xl border px-3 py-2 text-[11px] font-semibold ${colors}`;
+            el.textContent = text;
+            feed.appendChild(el);
+            feed.scrollTop = feed.scrollHeight;
+        }
+
+        function linkHealthCheck() {
+            const dc = APP_STATE.dataChannel;
+            const pc = APP_STATE.rtcPeer;
+            const now = performance.now();
+            const open = !!(dc && dc.readyState === 'open');
+            if (open && now - LINK.lastHb > 3000) {
+                LINK.lastHb = now;
+                try { dc.send('{"type":"HB"}'); } catch (e) {}
+            }
+            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; }
+            if (!LINK.wasUp) return;
+            const pcBad = pc && ['failed', 'disconnected', 'closed'].includes(pc.connectionState || pc.iceConnectionState);
+            const silent = now - (APP_STATE.lastRxAt || now) > LINK_TIMEOUT_MS;
+            if (!open) { LINK.wasUp = false; LINK.broken = false; return; }   // a closed channel is reported by the connect logic
+            const broken = pcBad || silent;
+            if (broken && !LINK.broken) {
+                LINK.broken = true;
+                const peer = getPeerRoleName();
+                appendOneChatSystem(`⚠️ Lost contact with ${peer}. Messages and files can't be delivered right now. If it doesn't come back, use Connect to pair again.`, 'bad');
+                showToast(`Connection to ${peer} lost`, 'warn');
+                if (typeof basicUpdateStatus === 'function') basicUpdateStatus();
+            } else if (!broken && LINK.broken) {
+                LINK.broken = false;
+                appendOneChatSystem(`✅ Connection to ${getPeerRoleName()} is back.`, 'good');
+                showToast('Connection restored', 'success');
+                if (typeof basicUpdateStatus === 'function') basicUpdateStatus();
+            }
+        }
+        setInterval(linkHealthCheck, 1000);
+        // Coming back from another app / a system dialog: check right away
+        document.addEventListener('visibilitychange', () => { if (!document.hidden) setTimeout(linkHealthCheck, 1500); });
+        // Warn before anything would unload the page and drop the session
+        window.addEventListener('beforeunload', (e) => {
+            const dc = APP_STATE.dataChannel;
+            if (dc && dc.readyState === 'open') { e.preventDefault(); e.returnValue = ''; }
+        });
+
         function appendOneChatEntry(sender, text, isSelf, kind = 'chat') {
             const feed = document.getElementById('onechat-feed');
             const isEphemeral = document.getElementById('onechat-ephemeral-toggle').checked;
@@ -4292,7 +4375,9 @@ if __name__ == "__main__":
             sendOneChatPayload({ type: 'ONECHAT_MSG', sender: myName, text });
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0);
 
-            if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
+            if (APP_STATE.rtcPeer && (LINK.broken || !APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open')) {
+                appendOneChatSystem('⚠️ Not delivered — no connection to ' + peerName + '.', 'bad');
+            } else if (!APP_STATE.dataChannel || APP_STATE.dataChannel.readyState !== 'open') {
                 setTimeout(() => {
                     spawn3DPacket(APP_STATE.role === 'A' ? 'B_TO_A' : 'A_TO_B', 'UDP', true, -0.2);
                     appendOneChatEntry(peerName, `👻 Read on OneChat: "${text}" (Direct P2P with no middleman)`, false, 'chat');
@@ -4836,7 +4921,12 @@ if __name__ == "__main__":
             const pairing = !connected && (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer');
             const ice = APP_STATE.rtcPeer ? APP_STATE.rtcPeer.iceConnectionState : '';
 
-            if (connected) {
+            if (connected && typeof LINK !== 'undefined' && LINK.broken) {
+                pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-amber-950/70 border border-amber-500/50 text-amber-300 font-mono';
+                dot.className = 'fa-solid fa-link-slash text-sm text-amber-400 animate-pulse';
+                text.textContent = 'NO RESPONSE';
+                lock.className = 'fa-solid fa-lock text-[10px] text-amber-400';
+            } else if (connected) {
                 pill.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 rounded-lg bg-emerald-950/70 border border-emerald-400/50 text-emerald-300 font-mono';
                 dot.className = 'fa-solid fa-link text-sm text-emerald-400';
                 text.textContent = 'CONNECTED';
@@ -4888,6 +4978,7 @@ if __name__ == "__main__":
                 showToast('Connected! Open OneChat to start talking.', 'success');
             } else if (!connected && BASIC.step === 'connected') {
                 showToast('The connection was closed.', 'warn');
+                appendOneChatSystem('⚠️ The connection was closed. Use Connect to pair again.', 'bad');
                 basicReset(true);
             } else {
                 basicUpdateStatus();
