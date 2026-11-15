@@ -226,6 +226,23 @@
                     <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pair two devices directly — no servers, no accounts. Swap two QR codes, an <strong class="text-cyan-300">Offer</strong> and an <strong class="text-emerald-300">Answer</strong>, by camera or through any chat app.</p>
                 </div>
 
+                <!-- Who you are / who you connect with -->
+                <section class="hud-glass rounded-2xl p-3 flex items-center gap-3">
+                    <div id="basic-my-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] text-slate-400">You appear as</div>
+                        <div id="basic-my-name" class="text-sm font-bold text-white truncate"></div>
+                    </div>
+                    <button onclick="openProfileEditor()" class="min-h-[36px] px-3 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 text-xs font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-pen"></i> Edit</button>
+                </section>
+                <section id="basic-peer-chip" class="hidden rounded-2xl p-3 bg-cyan-950/40 border border-cyan-500/40 flex items-center gap-3">
+                    <div id="basic-peer-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                    <div class="flex-1 min-w-0">
+                        <div class="text-[11px] text-cyan-300">Connecting with</div>
+                        <div id="basic-peer-name" class="text-sm font-bold text-white truncate"></div>
+                    </div>
+                </section>
+
                 <!-- Step: choose -->
                 <section id="basic-step-choose" class="space-y-3">
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -296,6 +313,10 @@
                 <section id="basic-done-card" class="hidden rounded-2xl p-5 bg-emerald-950/50 border border-emerald-400/50 text-center space-y-3">
                     <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl"><i class="fa-solid fa-link"></i></div>
                     <h3 class="text-lg font-extrabold text-white">Connected!</h3>
+                    <div id="basic-done-peer" class="hidden flex items-center justify-center gap-2">
+                        <div id="basic-done-avatar" class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden"></div>
+                        <span id="basic-done-name" class="text-sm font-bold text-emerald-200"></span>
+                    </div>
                     <p class="text-xs text-slate-300">A direct, encrypted peer-to-peer link is open. Nothing goes through a server.</p>
                     <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
                 </section>
@@ -901,7 +922,7 @@
             <div class="flex items-center gap-2 bg-black/65 backdrop-blur-xl border border-white/15 px-3 py-1.5 rounded-full shadow-xl pointer-events-auto">
                 <div class="relative">
                     <div class="w-8 h-8 rounded-full bg-gradient-to-tr from-yellow-400 via-amber-500 to-emerald-400 p-0.5">
-                        <div class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-yellow-300 text-xs">
+                        <div id="onechat-peer-avatar" class="w-full h-full rounded-full bg-slate-950 flex items-center justify-center text-yellow-300 text-xs overflow-hidden">
                             <i class="fa-solid fa-ghost"></i>
                         </div>
                     </div>
@@ -985,6 +1006,16 @@
                 <button onclick="toggleOneChatSettingsModal()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
                 </button>
+            </div>
+
+            <!-- Profile -->
+            <div class="flex items-center gap-3">
+                <div id="settings-my-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
+                <div class="flex-1 min-w-0">
+                    <div class="text-[10px] text-slate-400">Your name and picture</div>
+                    <div id="settings-my-name" class="text-sm font-bold text-white truncate"></div>
+                </div>
+                <button onclick="toggleOneChatSettingsModal(); openProfileEditor();" class="px-3 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-pen"></i> Edit</button>
             </div>
 
             <!-- Ephemeral Timer Setting -->
@@ -1207,9 +1238,12 @@
     </div>
 
     <!-- MODAL FOR INCOMING / OUTGOING CALL -->
-    <div id="onechat-call-modal" class="hidden fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+    <div id="onechat-call-modal" class="hidden fixed inset-0 z-[75] bg-black/85 backdrop-blur-sm flex flex-col items-center justify-center gap-3 p-4 overflow-y-auto">
         <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-white/15 p-6 text-center space-y-4 shadow-2xl">
-            <div class="w-16 h-16 mx-auto rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl animate-pulse"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></div>
+            <div class="relative w-20 h-20 mx-auto">
+                <div id="call-modal-avatar" class="w-20 h-20 rounded-full bg-slate-950 border-2 border-emerald-400 flex items-center justify-center text-emerald-300 text-2xl font-bold overflow-hidden animate-pulse"></div>
+                <span class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-slate-950 text-xs"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></span>
+            </div>
             <div>
                 <div id="onechat-call-modal-title" class="text-white font-extrabold text-base">Incoming call</div>
                 <div id="onechat-call-modal-sub" class="text-xs text-slate-400 mt-1"></div>
@@ -1217,6 +1251,38 @@
             <div class="flex items-center justify-center gap-4">
                 <button id="onechat-call-modal-decline" onclick="declineOneChatCall()" class="px-5 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone-slash"></i> <span>Decline</span></button>
                 <button id="onechat-call-modal-accept" onclick="acceptOneChatCall()" class="px-5 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Accept</button>
+            </div>
+        </div>
+        <div id="call-self-wrap" class="hidden w-full max-w-xs">
+            <video id="call-self-preview" class="w-full aspect-[3/4] max-h-[40dvh] object-cover rounded-2xl border border-white/15 bg-black" playsinline autoplay muted></video>
+            <div class="text-[10px] text-center text-slate-400 mt-1">You</div>
+        </div>
+    </div>
+
+    <!-- PROFILE EDITOR: name + picture -->
+    <div id="profile-modal" class="hidden fixed inset-0 z-[80] bg-black/85 backdrop-blur-sm flex items-center justify-center p-4">
+        <div class="w-full max-w-xs rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-4 shadow-2xl text-xs text-slate-200">
+            <div class="flex items-center justify-between">
+                <h3 class="font-bold text-sm text-white">Your profile</h3>
+                <button type="button" onclick="closeProfileEditor()" class="text-slate-400 hover:text-white p-1" title="Close"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            <div class="relative w-32 h-32 mx-auto">
+                <div id="pm-avatar" class="w-32 h-32 rounded-full bg-slate-800 text-slate-300 text-4xl font-bold flex items-center justify-center overflow-hidden"></div>
+                <video id="pm-video" class="hidden absolute inset-0 w-32 h-32 rounded-full object-cover scale-x-[-1]" playsinline autoplay muted></video>
+            </div>
+            <div class="flex justify-center gap-2">
+                <button type="button" id="pm-cam-btn" onclick="profileCameraButton()" class="px-3 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> <span>Take picture</span></button>
+                <button type="button" id="pm-remove-btn" onclick="profileRemovePhoto()" class="px-3 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold">Remove</button>
+                <input id="pm-file" type="file" accept="image/*" capture="user" class="hidden" onchange="profileFileChosen(event)">
+            </div>
+            <label class="block space-y-1">
+                <span class="text-slate-400">Name</span>
+                <input id="pm-name" type="text" maxlength="30" placeholder="Your name" class="w-full min-h-[40px] bg-slate-950 border border-slate-700 rounded-lg px-3 text-sm text-white focus:border-yellow-400 focus:outline-none">
+            </label>
+            <p class="text-[10px] text-slate-500">Shown to the person you connect with, and when you call them. Stored only on this device.</p>
+            <div class="flex gap-2">
+                <button type="button" onclick="closeProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">Cancel</button>
+                <button type="button" onclick="saveProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold">Save</button>
             </div>
         </div>
     </div>
@@ -1371,12 +1437,157 @@
             cameraPreset: 'overview'
         };
 
+        /* ---------- Profile: own name + picture, and the other party's ---------- */
+        var MY_PROFILE = { name: '', photo: '' };
+        var PEER_PROFILE = { name: '', photo: '' };
+        function cleanProfileName(n) { return String(n || '').replace(/[\u0000-\u001f\u007f]/g, '').trim().slice(0, 30); }
+        function cleanProfilePhoto(p) {
+            return (typeof p === 'string' && p.length < 300000 && /^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(p)) ? p : '';
+        }
+        try {
+            const saved = JSON.parse(localStorage.getItem('onechat-profile') || '{}');
+            MY_PROFILE = { name: cleanProfileName(saved.name), photo: cleanProfilePhoto(saved.photo) };
+        } catch (e) {}
+
         function getRoleName(roleCode) {
-            return roleCode === 'A' ? 'OneGiver' : 'OneReceiver';
+            const base = roleCode === 'A' ? 'OneGiver' : 'OneReceiver';
+            if (roleCode === APP_STATE.role && MY_PROFILE.name) return MY_PROFILE.name;
+            if (APP_STATE.role && roleCode !== APP_STATE.role && PEER_PROFILE.name) return PEER_PROFILE.name;
+            return base;
         }
 
         function getPeerRoleName() {
-            return APP_STATE.role === 'A' ? 'OneReceiver' : 'OneGiver';
+            return getRoleName(APP_STATE.role === 'A' ? 'B' : 'A');
+        }
+
+        // Fills an avatar box with a picture, else the first letter of the name, else an icon
+        function fillAvatar(el, prof, icon) {
+            if (!el) return;
+            el.textContent = '';
+            if (prof && prof.photo) {
+                const img = document.createElement('img');
+                img.src = prof.photo; img.alt = '';
+                img.className = 'w-full h-full object-cover';
+                el.appendChild(img);
+            } else if (prof && prof.name) {
+                el.textContent = prof.name.charAt(0).toUpperCase();
+            } else {
+                const i = document.createElement('i');
+                i.className = 'fa-solid ' + (icon || 'fa-user');
+                el.appendChild(i);
+            }
+        }
+
+        function refreshProfileUI() {
+            const myLabel = MY_PROFILE.name || 'No name set';
+            fillAvatar(document.getElementById('basic-my-avatar'), MY_PROFILE);
+            fillAvatar(document.getElementById('settings-my-avatar'), MY_PROFILE);
+            ['basic-my-name', 'settings-my-name'].forEach(id => { const e = document.getElementById(id); if (e) e.textContent = myLabel; });
+            const peerKnown = !!(PEER_PROFILE.name || PEER_PROFILE.photo);
+            const peerLabel = PEER_PROFILE.name || 'The other person';
+            const connected = !!(APP_STATE.dataChannel && APP_STATE.dataChannel.readyState === 'open');
+            const chip = document.getElementById('basic-peer-chip');
+            if (chip) chip.classList.toggle('hidden', !peerKnown || connected);
+            fillAvatar(document.getElementById('basic-peer-avatar'), PEER_PROFILE);
+            const pn = document.getElementById('basic-peer-name'); if (pn) pn.textContent = peerLabel;
+            const done = document.getElementById('basic-done-peer');
+            if (done) done.classList.toggle('hidden', !peerKnown);
+            fillAvatar(document.getElementById('basic-done-avatar'), PEER_PROFILE);
+            const dn = document.getElementById('basic-done-name'); if (dn) dn.textContent = peerLabel;
+            fillAvatar(document.getElementById('onechat-peer-avatar'), PEER_PROFILE, 'fa-ghost');
+            if (typeof updateOneChatHeaderRole === 'function') updateOneChatHeaderRole();
+        }
+
+        function sendMyProfile() {
+            const dc = APP_STATE.dataChannel;
+            if (!dc || dc.readyState !== 'open') return;
+            try { dc.send(JSON.stringify({ type: 'PROFILE', name: MY_PROFILE.name, photo: MY_PROFILE.photo })); } catch (e) {}
+        }
+
+        function receivePeerProfile(msg) {
+            PEER_PROFILE = { name: cleanProfileName(msg.name), photo: cleanProfilePhoto(msg.photo) };
+            refreshProfileUI();
+        }
+
+        function clearPeerProfile() {
+            PEER_PROFILE = { name: '', photo: '' };
+            refreshProfileUI();
+        }
+
+        /* Profile editor */
+        const PROFILE_EDIT = { photo: '', stream: null };
+        function openProfileEditor() {
+            PROFILE_EDIT.photo = MY_PROFILE.photo;
+            document.getElementById('pm-name').value = MY_PROFILE.name;
+            profileRenderPreview();
+            document.getElementById('profile-modal').classList.remove('hidden');
+        }
+        function profileRenderPreview() {
+            fillAvatar(document.getElementById('pm-avatar'), { name: document.getElementById('pm-name').value.trim(), photo: PROFILE_EDIT.photo });
+            document.getElementById('pm-remove-btn').classList.toggle('hidden', !PROFILE_EDIT.photo);
+        }
+        function profileStopCamera() {
+            if (PROFILE_EDIT.stream) PROFILE_EDIT.stream.getTracks().forEach(t => t.stop());
+            PROFILE_EDIT.stream = null;
+            const v = document.getElementById('pm-video');
+            v.srcObject = null; v.classList.add('hidden');
+            document.querySelector('#pm-cam-btn span').textContent = 'Take picture';
+        }
+        function closeProfileEditor() {
+            profileStopCamera();
+            document.getElementById('profile-modal').classList.add('hidden');
+        }
+        function profileFromSource(src, w, h) {
+            const side = Math.min(w, h), size = 192;
+            const c = document.createElement('canvas');
+            c.width = size; c.height = size;
+            c.getContext('2d').drawImage(src, (w - side) / 2, (h - side) / 2, side, side, 0, 0, size, size);
+            PROFILE_EDIT.photo = c.toDataURL('image/jpeg', 0.82);
+            profileRenderPreview();
+        }
+        async function profileCameraButton() {
+            const v = document.getElementById('pm-video');
+            if (PROFILE_EDIT.stream) {
+                // second press: take the picture (mirrored like the preview)
+                const w = v.videoWidth, h = v.videoHeight;
+                if (w && h) {
+                    const c = document.createElement('canvas');
+                    c.width = w; c.height = h;
+                    const ctx = c.getContext('2d');
+                    ctx.translate(w, 0); ctx.scale(-1, 1); ctx.drawImage(v, 0, 0, w, h);
+                    profileFromSource(c, w, h);
+                }
+                profileStopCamera();
+                return;
+            }
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) { document.getElementById('pm-file').click(); return; }
+            try {
+                PROFILE_EDIT.stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } }, audio: false });
+                v.srcObject = PROFILE_EDIT.stream;
+                v.classList.remove('hidden');
+                v.play().catch(() => {});
+                document.querySelector('#pm-cam-btn span').textContent = 'Snap';
+            } catch (e) {
+                document.getElementById('pm-file').click();   // no camera access: pick or take a photo instead
+            }
+        }
+        function profileFileChosen(e) {
+            const f = e.target.files && e.target.files[0];
+            e.target.value = '';
+            if (!f) return;
+            const url = URL.createObjectURL(f);
+            const img = new Image();
+            img.onload = () => { profileFromSource(img, img.naturalWidth, img.naturalHeight); URL.revokeObjectURL(url); };
+            img.src = url;
+        }
+        function profileRemovePhoto() { PROFILE_EDIT.photo = ''; profileRenderPreview(); }
+        function saveProfileEditor() {
+            MY_PROFILE = { name: cleanProfileName(document.getElementById('pm-name').value), photo: PROFILE_EDIT.photo };
+            try { localStorage.setItem('onechat-profile', JSON.stringify(MY_PROFILE)); } catch (e) {}
+            closeProfileEditor();
+            refreshProfileUI();
+            sendMyProfile();
+            showToast('Profile saved', 'success');
         }
 
         /**************************************************************************
@@ -1399,7 +1610,8 @@
 
             const toast = document.createElement('div');
             toast.className = `px-3.5 py-2.5 rounded-xl border shadow-2xl flex items-center gap-2.5 text-xs font-medium transition-all duration-300 ${colors[type] || colors.info}`;
-            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} shrink-0"></i><span>${message}</span>`;
+            toast.innerHTML = `<i class="fa-solid ${icons[type] || icons.info} shrink-0"></i><span></span>`;
+            toast.querySelector('span').textContent = message;
             container.appendChild(toast);
 
             setTimeout(() => {
@@ -2877,7 +3089,7 @@ if __name__ == "__main__":
             const msgDiv = document.createElement('div');
             msgDiv.className = `flex flex-col ${isSelf ? 'items-end' : 'items-start'}`;
             msgDiv.innerHTML = `
-                <span class="text-[9px] font-mono text-slate-400 mb-0.5">${sender}</span>
+                <span class="text-[9px] font-mono text-slate-400 mb-0.5">${escHtml(sender)}</span>
                 <div class="px-2.5 py-1.5 rounded-lg max-w-[85%] break-words ${isSelf ? 'bg-cyan-600/90 text-white' : 'bg-emerald-900/80 border border-emerald-500/40 text-emerald-100'}">
                     ${text.replace(/</g, '&lt;')}
                 </div>
@@ -2953,6 +3165,8 @@ if __name__ == "__main__":
                         renderIncomingPeerVideoFrame(parsed);
                     } else if (parsed.type === 'ONECHAT_WEBRTC_RENEGOTIATE') {
                         handleIncomingWebRTCRenegotiation(parsed);
+                    } else if (parsed.type === 'PROFILE') {
+                        receivePeerProfile(parsed);
                     } else if (parsed.type === 'HB') {
                         /* heartbeat: lastRxAt already updated */
                     } else if (parsed.type === 'PING') {
@@ -3219,7 +3433,8 @@ if __name__ == "__main__":
             const subEl = document.getElementById('onechat-role-subtitle');
             if (titleEl) titleEl.textContent = peerName;
             if (subEl) {
-                subEl.innerHTML = `You are <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}">${myName}</strong>`;
+                subEl.innerHTML = `You are <strong class="${APP_STATE.role === 'A' ? 'text-cyan-300' : 'text-emerald-300'}"></strong>`;
+                subEl.querySelector('strong').textContent = myName;
             }
         }
 
@@ -3518,10 +3733,41 @@ if __name__ == "__main__":
                 ? `${getPeerRoleName()} wants to start a ${kind}` : `Waiting for ${getPeerRoleName()} to accept the ${kind}`;
             document.getElementById('onechat-call-modal-accept').classList.toggle('hidden', mode !== 'incoming');
             document.querySelector('#onechat-call-modal-decline span').textContent = mode === 'incoming' ? 'Decline' : 'Cancel';
+            fillAvatar(document.getElementById('call-modal-avatar'), PEER_PROFILE);
             document.getElementById('onechat-call-modal').classList.remove('hidden');
+            if (withVideo) startCallSelfPreview(); else stopCallSelfPreview();
+        }
+
+        // Your own camera under the ringing dialog (video calls only); closed again when the dialog closes
+        const CALL_PREVIEW = { stream: null, token: 0 };
+        async function startCallSelfPreview() {
+            stopCallSelfPreview();
+            const token = ++CALL_PREVIEW.token;
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) return;
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' }, audio: false });
+                if (token !== CALL_PREVIEW.token) { stream.getTracks().forEach(t => t.stop()); return; }
+                CALL_PREVIEW.stream = stream;
+                const v = document.getElementById('call-self-preview');
+                const mirror = document.getElementById('onechat-mirror-toggle');
+                v.classList.toggle('scale-x-[-1]', !mirror || mirror.checked);
+                v.srcObject = stream;
+                v.play().catch(() => {});
+                document.getElementById('call-self-wrap').classList.remove('hidden');
+            } catch (e) { /* no camera / permission refused: dialog works without preview */ }
+        }
+        function stopCallSelfPreview() {
+            CALL_PREVIEW.token++;
+            if (CALL_PREVIEW.stream) CALL_PREVIEW.stream.getTracks().forEach(t => t.stop());
+            CALL_PREVIEW.stream = null;
+            const v = document.getElementById('call-self-preview');
+            if (v) v.srcObject = null;
+            const w = document.getElementById('call-self-wrap');
+            if (w) w.classList.add('hidden');
         }
 
         function hideCallModal() {
+            stopCallSelfPreview();
             document.getElementById('onechat-call-modal').classList.add('hidden');
             if (ONECHAT_STATE.ringTimeout) { clearTimeout(ONECHAT_STATE.ringTimeout); ONECHAT_STATE.ringTimeout = null; }
         }
@@ -4301,7 +4547,7 @@ if __name__ == "__main__":
                 LINK.lastHb = now;
                 try { dc.send('{"type":"HB"}'); } catch (e) {}
             }
-            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; }
+            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; sendMyProfile(); refreshProfileUI(); }
             if (!LINK.wasUp) return;
             const pcBad = pc && ['failed', 'disconnected', 'closed'].includes(pc.connectionState || pc.iceConnectionState);
             const silent = now - (APP_STATE.lastRxAt || now) > LINK_TIMEOUT_MS;
@@ -4328,6 +4574,9 @@ if __name__ == "__main__":
             const dc = APP_STATE.dataChannel;
             if (dc && dc.readyState === 'open') { e.preventDefault(); e.returnValue = ''; }
         });
+
+        refreshProfileUI();
+        document.getElementById('pm-name').addEventListener('input', () => profileRenderPreview());
 
         /* ---------- Build info (stamped by .github/workflows/pages.yml) ---------- */
         const BUILD_INFO = { commit: '__BUILD_COMMIT__', time: '__BUILD_TIME__' };
@@ -4449,7 +4698,7 @@ if __name__ == "__main__":
             item.className = `pl-3 border-l-4 ${barColor} bg-slate-900/75 rounded-r-xl py-2 px-3 transition-all duration-300`;
             item.innerHTML = `
                 <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${nameColor}">${sender}</span>
+                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${nameColor}">${escHtml(sender)}</span>
                     <span class="text-[9px] font-mono text-slate-500">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 </div>
                 <div class="text-slate-100 text-xs leading-relaxed break-words">${text.replace(/</g, '&lt;')}</div>
@@ -4939,6 +5188,7 @@ if __name__ == "__main__":
                 s: pick(/a=setup:(.+)/),
                 c: candidates
             };
+            if (MY_PROFILE.name) obj.n = encodeURIComponent(MY_PROFILE.name);
             return 'OC1:' + btoa(JSON.stringify(obj));
         }
 
@@ -5113,6 +5363,7 @@ if __name__ == "__main__":
         }
 
         function basicReset(closePeer) {
+            if (closePeer) clearPeerProfile();
             basicStopCamera();
             basicStopPunching();
             if (closePeer) {
@@ -5215,6 +5466,10 @@ if __name__ == "__main__":
             } catch (e) {
                 showToast('This QR code is damaged or incomplete. Try again.', 'error');
                 return false;
+            }
+            if (o.n && !BASIC.busy && BASIC.step !== 'connected') {
+                try { PEER_PROFILE = { name: cleanProfileName(decodeURIComponent(o.n)), photo: '' }; } catch (e) {}
+                refreshProfileUI();
             }
             if (BASIC.busy) return false;
             if (o.t === 'o') {
