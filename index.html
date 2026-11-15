@@ -260,13 +260,6 @@
                     </div>
                 </section>
 
-                <!-- Saved connections (kept when burning a conversation) -->
-                <section id="basic-saved" class="hidden hud-glass rounded-2xl p-3 space-y-2">
-                    <div class="text-[11px] text-slate-400 font-semibold uppercase tracking-wider"><i class="fa-solid fa-bookmark"></i> Saved connections</div>
-                    <div id="basic-saved-list" class="space-y-2"></div>
-                    <p class="text-[10px] text-slate-500">Reconnect makes a new invitation for them and checks that it is really the same person.</p>
-                </section>
-
                 <!-- Step: choose -->
                 <section id="basic-step-choose" class="space-y-3">
                     <div class="grid gap-3 sm:grid-cols-2">
@@ -1982,7 +1975,6 @@
             dc.binaryType = 'arraybuffer';
 
             dc.onopen = () => {
-                try { sendPairHalf(); } catch (e) {}
                 activateFullP2PTunnel('WebRTC DataChannel (Encrypted DTLS/SCTP)');
                 document.getElementById('chat-mode-indicator').textContent = 'Real WebRTC Active';
                 document.getElementById('chat-mode-indicator').className = 'font-mono text-[10px] text-emerald-400 font-bold';
@@ -3226,10 +3218,6 @@ if __name__ == "__main__":
                         renderIncomingPeerVideoFrame(parsed);
                     } else if (parsed.type === 'ONECHAT_WEBRTC_RENEGOTIATE') {
                         handleIncomingWebRTCRenegotiation(parsed);
-                    } else if (parsed.type === 'PAIR_HALF') {
-                        onPairHalf(parsed);
-                    } else if (parsed.type === 'PAIR_PROOF') {
-                        onPairProof(parsed);
                     } else if (parsed.type === 'PROFILE') {
                         receivePeerProfile(parsed);
                     } else if (parsed.type === 'HB') {
@@ -5180,250 +5168,20 @@ if __name__ == "__main__":
             basicShowTab('connect', true);
         }
 
-        /* ---------- Saved connections ----------
-           A serverless connection cannot be reopened by itself: every new session needs a fresh invitation.
-           What is kept is the contact (name, picture) and a shared secret, so "Reconnect" can make the
-           invitation for that person and prove afterwards that it is really them. */
-        const CONTACTS_KEY = 'onechat-contacts';
-        function loadContacts() {
-            try { const a = JSON.parse(localStorage.getItem(CONTACTS_KEY) || '[]'); return Array.isArray(a) ? a.filter(c => c && c.id && c.secret) : []; }
-            catch (e) { return []; }
-        }
-        function storeContacts(a) {
-            try { localStorage.setItem(CONTACTS_KEY, JSON.stringify(a.slice(0, 20))); return true; }
-            catch (e) { showToast('Could not save — the browser storage is full or blocked', 'warn'); return false; }
-        }
-        function findContact(id) { return loadContacts().find(c => c.id === id) || null; }
-
-        const _enc = new TextEncoder();
-        const _b64 = (u8) => btoa(String.fromCharCode(...u8));
-        const _unb64 = (t) => Uint8Array.from(atob(t), c => c.charCodeAt(0));
-        const _hex = (u8) => Array.from(u8, b => b.toString(16).padStart(2, '0')).join('');
-        function _concat(...parts) {
-            const out = new Uint8Array(parts.reduce((n, p) => n + p.length, 0)); let o = 0;
-            parts.forEach(p => { out.set(p, o); o += p.length; }); return out;
-        }
-        async function _sha256(...parts) { return new Uint8Array(await crypto.subtle.digest('SHA-256', _concat(...parts))); }
-        async function _hmac(keyBytes, data) {
-            const k = await crypto.subtle.importKey('raw', keyBytes, { name: 'HMAC', hash: 'SHA-256' }, false, ['sign']);
-            return new Uint8Array(await crypto.subtle.sign('HMAC', k, data));
-        }
-
-        // one per connection: both sides exchange a random half, and derive the same id + secret from the two halves
-        var SESSION = null;
-        function ensureSession() {
-            if (!SESSION) {
-                SESSION = { myHalf: _b64(crypto.getRandomValues(new Uint8Array(16))), peerHalf: null, nonce: null, pairId: null, secret: null,
-                            contactId: BASIC.reconnectId || null, unknownContact: !!BASIC.reconnectUnknown, verified: null, halfSent: false,
-                            pendingProof: null, timer: null };
-            }
-            return SESSION;
-        }
-        function sendPairHalf() {
-            const S = ensureSession(), dc = APP_STATE.dataChannel;
-            if (S.halfSent || !dc || dc.readyState !== 'open') return;
-            S.halfSent = true;
-            try { dc.send(JSON.stringify({ type: 'PAIR_HALF', half: S.myHalf })); } catch (e) { S.halfSent = false; }
-        }
-        async function onPairHalf(msg) {
-            const S = ensureSession();
-            if (S.peerHalf || typeof msg.half !== 'string' || msg.half.length > 40) return;
-            S.peerHalf = msg.half;
-            sendPairHalf();
-            await derivePair();
-        }
-        async function derivePair() {
-            const S = SESSION;
-            if (!S || !S.peerHalf || S.nonce) return;
-            const base = _enc.encode([S.myHalf, S.peerHalf].sort().join('|'));
-            S.nonce = await _sha256(_enc.encode('nonce|'), base);
-            S.pairId = _hex((await _sha256(_enc.encode('id|'), base)).slice(0, 16));
-            S.secret = _b64(await _sha256(_enc.encode('secret|'), base));
-            if (S.contactId) {
-                const c = findContact(S.contactId);
-                if (c) await sendPairProof(c);
-                else finishVerify(false, 'no-contact');
-                if (S.pendingProof) await checkPairProof(S.pendingProof);
-                S.timer = setTimeout(() => { if (S.verified === null) finishVerify(false, 'no-proof'); }, 7000);
-            } else if (S.unknownContact) {
-                finishVerify(false, 'no-contact');    // they invited us as a saved contact, but this device does not have them
-            }
-        }
-        async function _proofFor(c) { return _hmac(_unb64(c.secret), _concat(SESSION.nonce, _enc.encode('prove|' + c.id))); }
-        async function sendPairProof(c) {
-            const dc = APP_STATE.dataChannel;
-            if (!dc || dc.readyState !== 'open') return;
-            try { dc.send(JSON.stringify({ type: 'PAIR_PROOF', id: c.id, mac: _b64(await _proofFor(c)) })); } catch (e) {}
-        }
-        async function onPairProof(msg) {
-            const S = ensureSession();
-            if (!S.nonce) { S.pendingProof = msg; return; }
-            await checkPairProof(msg);
-        }
-        async function checkPairProof(msg) {
-            const S = SESSION;
-            if (!S || S.verified !== null) return;
-            const c = S.contactId && findContact(S.contactId);
-            if (!c || msg.id !== c.id || typeof msg.mac !== 'string') { finishVerify(false, 'mismatch'); return; }
-            let ok = false;
-            try { const mine = _b64(await _proofFor(c)); ok = (mine === msg.mac); } catch (e) {}
-            finishVerify(ok, ok ? 'ok' : 'mismatch');
-        }
-        function finishVerify(ok, why) {
-            const S = SESSION;
-            if (!S || S.verified !== null) return;
-            S.verified = !!ok;
-            clearTimeout(S.timer);
-            const c = S.contactId && findContact(S.contactId);
-            const who = (c && c.name) || getPeerRoleName();
-            if (ok) appendOneChatSystem(`✅ Verified — this is ${who}, from your saved connection.`, 'good');
-            else if (why === 'no-contact') appendOneChatSystem('⚠️ This device has no saved connection for them, so they cannot be verified.', 'bad');
-            else appendOneChatSystem(`⚠️ Could not verify that this is ${who}. Only continue if you know who you are talking to.`, 'bad');
-        }
-
-        // the contact that would be saved for the current connection (null when there is nothing to save)
-        function contactRecordFromSession() {
-            const S = SESSION;
-            if (!S || !S.secret || !S.pairId) return null;
-            const existing = (S.verified === true && S.contactId) ? findContact(S.contactId) : null;
-            return {
-                id: existing ? existing.id : S.pairId,
-                secret: existing ? existing.secret : S.secret,
-                name: (PEER_PROFILE.name || (existing && existing.name) || getPeerRoleName()).slice(0, 30),
-                photo: PEER_PROFILE.photo || (existing && existing.photo) || '',
-                savedAt: Date.now()
-            };
-        }
-        function saveContactRecord(rec) {
-            if (!rec) return false;
-            const all = loadContacts().filter(c => c.id !== rec.id);
-            all.unshift(rec);
-            const ok = storeContacts(all);
-            renderSavedContacts();
-            return ok;
-        }
-
-        function renderSavedContacts() {
-            const box = document.getElementById('basic-saved'), list = document.getElementById('basic-saved-list');
-            if (!box || !list) return;
-            const all = loadContacts();
-            box.classList.toggle('hidden', !all.length || BASIC.step !== 'choose');
-            list.textContent = '';
-            all.forEach(c => {
-                const row = document.createElement('div');
-                row.className = 'flex items-center gap-3';
-                const av = document.createElement('div');
-                av.className = 'w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0';
-                fillAvatar(av, { name: c.name, photo: c.photo });
-                const info = document.createElement('div');
-                info.className = 'flex-1 min-w-0';
-                const nm = document.createElement('div'); nm.className = 'text-sm font-bold text-white truncate'; nm.textContent = c.name;
-                const dt = document.createElement('div'); dt.className = 'text-[10px] text-slate-500';
-                dt.textContent = 'Saved ' + new Date(c.savedAt || Date.now()).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-                info.append(nm, dt);
-                const re = document.createElement('button');
-                re.type = 'button'; re.className = 'min-h-[36px] px-3 rounded-lg bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-semibold flex items-center gap-1.5';
-                re.innerHTML = '<i class="fa-solid fa-rotate"></i> Reconnect';
-                re.onclick = () => reconnectContact(c.id);
-                const rm = document.createElement('button');
-                rm.type = 'button'; rm.title = 'Remove saved connection'; rm.className = 'w-9 h-9 rounded-lg bg-slate-800 hover:bg-rose-900 text-slate-300 hover:text-white flex items-center justify-center';
-                rm.innerHTML = '<i class="fa-solid fa-trash-can text-xs"></i>';
-                rm.onclick = () => removeContact(c.id);
-                row.append(av, info, re, rm);
-                list.appendChild(row);
-            });
-        }
-        function removeContact(id) {
-            const c = findContact(id);
-            if (!c || !confirm(`Remove the saved connection with ${c.name}?`)) return;
-            storeContacts(loadContacts().filter(x => x.id !== id));
-            renderSavedContacts();
-        }
-
-        // Reconnect: a fresh invitation (QR + link) that is marked as coming from the saved contact
-        async function reconnectContact(id) {
-            const c = findContact(id);
-            if (!c) return;
-            await basicStartHost();
-            if (BASIC.step !== 'host-offer') return;
-            BASIC.reconnectId = id;
-            PEER_PROFILE = { name: c.name, photo: c.photo || '' };
-            refreshProfileUI();
-            basicShowCode('offer', BASIC.code);      // rebuild the QR so the link carries the contact marker
-            copySiteQr();
-        }
-
-        /* ---------- Dialogs: burn (with "keep connection"), and the prompt the other side gets ---------- */
-        function openSimpleModal(html) {
-            const m = document.createElement('div');
-            m.className = 'fixed inset-0 z-[320] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4';
-            m.innerHTML = html;
-            document.body.appendChild(m);
-            return m;
-        }
-        function showBurnDialog() {
-            return new Promise(resolve => {
-                const canKeep = !!(SESSION && SESSION.secret);
-                const m = openSimpleModal(`
-                    <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-orange-500/40 p-5 space-y-3 shadow-2xl text-xs text-slate-200">
-                        <div class="flex items-center gap-3">
-                            <span class="w-11 h-11 rounded-full bg-orange-950 text-orange-400 flex items-center justify-center text-xl shrink-0"><i class="fa-solid fa-fire"></i></span>
-                            <div><div class="font-bold text-sm text-white">Burn this conversation?</div>
-                            <div class="text-slate-400">Both of you are disconnected and all messages and pictures are deleted.</div></div>
-                        </div>
-                        <label class="flex items-start gap-2.5 p-2.5 rounded-xl bg-slate-800/70 cursor-pointer ${canKeep ? '' : 'opacity-50'}">
-                            <input type="checkbox" data-bn="keep" ${canKeep ? '' : 'disabled'} class="mt-0.5 w-4 h-4 rounded border-slate-600 text-orange-500 focus:ring-0">
-                            <span><span class="font-semibold text-white">Keep the connection info</span><br>
-                            <span class="text-slate-400">${canKeep ? 'Saves this person so you can reconnect later. No messages are kept.' : 'Not available yet — the connection is still being set up.'}</span></span>
-                        </label>
-                        <div class="flex gap-2">
-                            <button type="button" data-bn="cancel" class="flex-1 min-h-[42px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">Cancel</button>
-                            <button type="button" data-bn="burn" class="flex-1 min-h-[42px] rounded-xl bg-orange-600 hover:bg-orange-500 text-white font-bold flex items-center justify-center gap-1.5"><i class="fa-solid fa-fire"></i> Burn</button>
-                        </div>
-                    </div>`);
-                const done = (v) => { m.remove(); resolve(v); };
-                m.querySelector('[data-bn="cancel"]').onclick = () => done(null);
-                m.addEventListener('click', e => { if (e.target === m) done(null); });
-                m.querySelector('[data-bn="burn"]').onclick = () => done({ keep: !!m.querySelector('[data-bn="keep"]').checked });
-            });
-        }
-        function showKeepPrompt(rec) {
-            const m = openSimpleModal(`
-                <div class="w-full max-w-sm rounded-3xl bg-slate-900 border border-white/15 p-5 space-y-3 shadow-2xl text-xs text-slate-200 text-center">
-                    <div class="w-14 h-14 mx-auto rounded-full bg-slate-800 text-slate-300 flex items-center justify-center text-xl font-bold overflow-hidden" data-bk="av"></div>
-                    <div class="font-bold text-sm text-white" data-bk="title"></div>
-                    <div class="text-slate-400">Keep their connection info so you can reconnect later? No messages are kept.</div>
-                    <div class="flex gap-2">
-                        <button type="button" data-bk="no" class="flex-1 min-h-[42px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">No thanks</button>
-                        <button type="button" data-bk="yes" class="flex-1 min-h-[42px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold">Keep</button>
-                    </div>
-                </div>`);
-            fillAvatar(m.querySelector('[data-bk="av"]'), { name: rec.name, photo: rec.photo });
-            m.querySelector('[data-bk="title"]').textContent = `${rec.name} burned the conversation`;
-            m.querySelector('[data-bk="no"]').onclick = () => m.remove();
-            m.querySelector('[data-bk="yes"]').onclick = () => { m.remove(); if (saveContactRecord(rec)) showToast(`Saved ${rec.name} — use Reconnect on the Connect screen`, 'success'); };
-        }
-
-        async function forgetConnection() {
-            const choice = await showBurnDialog();
-            if (!choice) return;
-            let kept = false;
-            if (choice.keep) kept = saveContactRecord(contactRecordFromSession());   // before the profile and session are wiped
+        function forgetConnection() {
+            if (!confirm('Burn this conversation? Both of you will be disconnected and all messages and pictures are deleted.')) return;
             sendOneChatPayload({ type: 'ONECHAT_FORGET', sender: getRoleName(APP_STATE.role) });
             burstIntoFlames();
             setTimeout(() => {
                 wipeConversationLocally();
-                showToast(kept ? 'Conversation burned — connection info kept for reconnecting.' : 'Conversation burned and disconnected.', 'info');
+                showToast('Conversation burned and disconnected.', 'info');
             }, 250);
         }
 
         function handleIncomingForget(msg) {
-            const rec = contactRecordFromSession();                    // taken before the wipe clears the session
-            const known = rec && findContact(rec.id);
             burstIntoFlames();
             wipeConversationLocally();
             showToast(`${(msg && msg.sender) || getPeerRoleName()} burned the conversation — disconnected.`, 'info');
-            if (rec && !known) setTimeout(() => showKeepPrompt(rec), 3300);   // after the flames
         }
 
         /* Full-screen fire for 3 s: flames rise from the bottom, then fade out */
@@ -5549,7 +5307,7 @@ if __name__ == "__main__":
                 LINK.lastHb = now;
                 try { dc.send('{"type":"HB"}'); } catch (e) {}
             }
-            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; sendMyProfile(); sendPairHalf(); refreshProfileUI(); }
+            if (open && !LINK.wasUp) { LINK.wasUp = true; APP_STATE.lastRxAt = now; sendMyProfile(); refreshProfileUI(); }
             if (!LINK.wasUp) return;
             const pcBad = pc && ['failed', 'disconnected', 'closed'].includes(pc.connectionState || pc.iceConnectionState);
             const silent = now - (APP_STATE.lastRxAt || now) > LINK_TIMEOUT_MS;
@@ -6318,7 +6076,7 @@ if __name__ == "__main__":
         // The code is made URL-safe (no + / = :) so chat apps keep the whole link clickable
         function joinLinkFor(code) {
             const safe = code.replace(/^OC1:/, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
-            return oneChatAppUrl() + '#join=' + safe + (BASIC.reconnectId ? '&r=' + BASIC.reconnectId : '');
+            return oneChatAppUrl() + '#join=' + safe;
         }
         function codeFromJoinParam(v) {
             v = String(v || '').trim();
@@ -6348,7 +6106,6 @@ if __name__ == "__main__":
             show('basic-scan-card', step === 'host-offer' || step === 'guest-scan');
             show('basic-done-card', step === 'connected');
             show('basic-btn-reset', step !== 'choose');
-            if (typeof renderSavedContacts === 'function') renderSavedContacts();
 
             if (step === 'host-offer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 1';
@@ -6448,11 +6205,7 @@ if __name__ == "__main__":
         }
 
         function basicReset(closePeer) {
-            if (closePeer) {
-                clearPeerProfile();
-                if (SESSION && SESSION.timer) clearTimeout(SESSION.timer);
-                SESSION = null; BASIC.reconnectId = null; BASIC.reconnectUnknown = false;
-            }
+            if (closePeer) clearPeerProfile();
             basicStopCamera();
             basicStopPunching();
             if (closePeer) {
@@ -6543,7 +6296,7 @@ if __name__ == "__main__":
         async function basicHandleCode(raw) {
             let text = (raw || '').trim();
             try { text = decodeURIComponent(text); } catch (e) {}
-            const jm = text.match(/#join=([A-Za-z0-9\-_+\/=:]+)/);   // stops at '&r=...'
+            const jm = text.match(/#join=([A-Za-z0-9\-_+\/=:]+)/);
             if (jm) text = codeFromJoinParam(jm[1]);
             const idx = text.indexOf('OC1:');
             if (idx < 0) {
@@ -6843,9 +6596,7 @@ if __name__ == "__main__":
         function basicInit() {
             let mode = 'basic';
             try { if (localStorage.getItem('onechat-view-mode') === 'advanced') mode = 'advanced'; } catch (e) {}
-            const jm0 = location.hash.match(/^#join=([^&]+)(?:&r=([0-9a-f]{8,64}))?/);
-            const join = jm0 ? jm0[1] : '';
-            const joinFor = jm0 && jm0[2] ? jm0[2] : '';
+            const join = location.hash.startsWith('#join=') ? location.hash.slice(6) : '';
             if (join) mode = 'basic';
             setViewMode(mode);
             setInterval(basicPoll, 500);
@@ -6853,15 +6604,6 @@ if __name__ == "__main__":
                 // drop the code from the address so a reload does not re-join
                 history.replaceState(null, '', location.pathname + location.search);
                 basicShowTab('connect', true);
-                if (joinFor) {
-                    const c = findContact(joinFor);
-                    if (c) {
-                        BASIC.reconnectId = joinFor; BASIC.reconnectUnknown = false;
-                        PEER_PROFILE = { name: c.name, photo: c.photo || '' };
-                        refreshProfileUI();
-                        showToast(`Reconnecting with ${c.name}`, 'info');
-                    } else { BASIC.reconnectId = null; BASIC.reconnectUnknown = true; }
-                }
                 setTimeout(() => basicHandleCode('#join=' + join), 300);
             }
         }
@@ -6911,11 +6653,6 @@ if __name__ == "__main__":
             let link, qr;
             if (canvas) {
                 link = joinLinkFor(BASIC.code); qr = canvas;
-                const rc = BASIC.reconnectId && findContact(BASIC.reconnectId);
-                if (rc) {
-                    m.querySelector('#jm-title').textContent = 'Reconnect with ' + rc.name;
-                    m.querySelector('#jm-hint').textContent = 'Send this to ' + rc.name + '. When they open it, you reconnect and OneChat checks that it is really them.';
-                }
             } else {
                 link = oneChatAppUrl();
                 if (!siteQrCanvas) siteQrCanvas = basicMakeQrCanvas(link, 'OneChat', 'Scan to open the app');
