@@ -155,6 +155,9 @@
         /* Basic / Advanced view switching */
         body.basic-mode .adv-only { display: none !important; }
         body:not(.basic-mode) .basic-only { display: none !important; }
+        @keyframes oc-spin { to { transform: rotate(360deg); } }
+        @keyframes oc-fade-in { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes oc-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
         body.basic-mode #onechat-overlay {
             top: 52px !important;
             height: calc(100dvh - 52px) !important;
@@ -4661,6 +4664,7 @@ if __name__ == "__main__":
         // Warn before anything would unload the page and drop the session
         window.addEventListener('beforeunload', (e) => {
             const dc = APP_STATE.dataChannel;
+            if (window.__ocReloading) return;
             if (dc && dc.readyState === 'open') { e.preventDefault(); e.returnValue = ''; }
         });
 
@@ -4694,6 +4698,42 @@ if __name__ == "__main__":
             if (pop && !pop.classList.contains('hidden') && !pop.contains(e.target)) pop.classList.add('hidden');
         });
 
+        /* ---------- Tap the empty space on the Connect screen 4 times: full refresh ---------- */
+        (function initFourTapRefresh() {
+            const main = document.getElementById('basic-connect');
+            if (!main) return;
+            const blank = main.firstElementChild;
+            let taps = [];
+            main.addEventListener('pointerup', (e) => {
+                if (e.target !== main && e.target !== blank) { taps = []; return; }   // only empty space counts
+                const now = Date.now();
+                taps = taps.filter(t => now - t < 1500);
+                taps.push(now);
+                if (taps.length >= 4) { taps = []; fullRefresh(); }
+            });
+        })();
+
+        async function fullRefresh() {
+            const dc = APP_STATE.dataChannel;
+            if (dc && dc.readyState === 'open' && !confirm('Refreshing ends the current connection. Refresh now?')) return;
+            const ov = document.createElement('div');
+            ov.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 40%,#0e2440,#050811 70%);color:#e2e8f0;font:600 14px Inter,system-ui,sans-serif;animation:oc-fade-in .3s ease-out';
+            ov.innerHTML = `
+                <div style="position:relative;width:96px;height:96px;animation:oc-pop .35s ease-out">
+                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin .9s linear infinite"></div>
+                    <img src="icons/logo.webp" alt="" style="position:absolute;inset:14px;width:68px;height:68px;border-radius:16px;object-fit:cover">
+                </div>
+                <div>Refreshing OneChat…</div>
+                <div style="font-weight:400;font-size:11px;color:#64748b">Getting the latest version</div>`;
+            document.body.appendChild(ov);
+            const minShow = new Promise(r => setTimeout(r, 1100));
+            // pull a fresh copy past any cache before reloading
+            try { await fetch(location.pathname + '?r=' + Date.now(), { cache: 'reload' }); } catch (e) {}
+            await minShow;
+            window.__ocReloading = true;
+            location.replace(location.pathname + '?r=' + Date.now().toString(36));
+        }
+
         /* ---------- New-version check (home-screen apps stay loaded for a long time) ---------- */
         const UPDATE = { checking: false, lastCheck: 0, notified: false };
         async function checkForNewVersion() {
@@ -4707,7 +4747,7 @@ if __name__ == "__main__":
             } catch (e) { /* offline: try again later */ }
             UPDATE.checking = false;
         }
-        function reloadToVersion(sha) { location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
+        function reloadToVersion(sha) { window.__ocReloading = true; location.replace(location.pathname + '?v=' + sha.slice(0, 7)); }
         function onNewVersion(sha) {
             const dc = APP_STATE.dataChannel;
             if (!(dc && dc.readyState === 'open')) { reloadToVersion(sha); return; }   // nobody connected: just update
