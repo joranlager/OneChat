@@ -279,7 +279,8 @@
                 </section>
 
                 <!-- QR output card (Offer or Answer) -->
-                <section id="basic-qr-card" class="hidden hud-glass rounded-2xl p-4 space-y-3">
+                <div id="basic-steps" class="flex items-start gap-3 overflow-x-auto snap-x snap-mandatory" style="scrollbar-width:none;overscroll-behavior-x:contain">
+                <section id="basic-qr-card" class="hidden hud-glass rounded-2xl p-4 space-y-3 w-full shrink-0 snap-center">
                     <div class="flex items-center gap-2">
                         <span id="basic-qr-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono font-bold">STEP 1</span>
                         <h3 id="basic-qr-title" class="font-bold text-white text-base">Your Offer</h3>
@@ -297,7 +298,7 @@
                 </section>
 
                 <!-- Scan / paste card -->
-                <section id="basic-scan-card" class="hidden hud-glass rounded-2xl p-4 space-y-3">
+                <section id="basic-scan-card" class="hidden hud-glass rounded-2xl p-4 space-y-3 w-full shrink-0 snap-center">
                     <div class="flex items-center gap-2">
                         <span id="basic-scan-badge" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[11px] font-mono font-bold">STEP 2</span>
                         <h3 id="basic-scan-title" class="font-bold text-white text-base">Scan their Answer</h3>
@@ -325,6 +326,13 @@
                         </div>
                     </details>
                 </section>
+                </div>
+                <!-- Swipe indicator (only when both steps are shown) -->
+                <div id="basic-step-dots" class="hidden flex items-center justify-center gap-3 text-[11px] font-mono font-bold">
+                    <button id="basic-dot-1" onclick="basicGoToStep(0)" class="px-3 py-1 rounded-full border border-cyan-500/40 text-cyan-300">1 · Offer</button>
+                    <span class="text-slate-500">⟷ swipe</span>
+                    <button id="basic-dot-2" onclick="basicGoToStep(1)" class="px-3 py-1 rounded-full border border-emerald-500/40 text-emerald-300">2 · Answer</button>
+                </div>
 
                 <!-- Connected card -->
                 <section id="basic-done-card" class="hidden rounded-2xl p-5 bg-emerald-950/50 border border-emerald-400/50 text-center space-y-3">
@@ -6106,6 +6114,9 @@ if __name__ == "__main__":
             show('basic-scan-card', step === 'host-offer' || step === 'guest-scan');
             show('basic-done-card', step === 'connected');
             show('basic-btn-reset', step !== 'choose');
+            show('basic-step-dots', step === 'host-offer');
+            if (step !== 'host-offer') basicEl('basic-steps').scrollLeft = 0;
+            basicUpdateDots();
 
             if (step === 'host-offer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 1';
@@ -6126,6 +6137,21 @@ if __name__ == "__main__":
             basicEl('basic-btn-share').classList.toggle('hidden', !(navigator.canShare && navigator.share));
             basicUpdateStatus();
         }
+
+        function basicGoToStep(i) {
+            const c = basicEl('basic-steps');
+            c.scrollTo({ left: i * c.clientWidth, behavior: 'smooth' });
+        }
+
+        function basicUpdateDots() {
+            const c = basicEl('basic-steps');
+            const idx = c.clientWidth && c.scrollLeft > c.clientWidth / 2 ? 1 : 0;
+            basicEl('basic-dot-1').classList.toggle('bg-slate-800', idx === 0);
+            basicEl('basic-dot-2').classList.toggle('bg-slate-800', idx === 1);
+        }
+        document.addEventListener('DOMContentLoaded', () => {
+            basicEl('basic-steps').addEventListener('scroll', basicUpdateDots, { passive: true });
+        });
 
         function basicUpdateStatus() {
             const pill = basicEl('basic-status-pill');
