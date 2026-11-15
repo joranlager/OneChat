@@ -4518,6 +4518,7 @@ if __name__ == "__main__":
         }
 
         function handleIncomingForget(msg) {
+            burstIntoFlames();
             wipeConversationLocally();
             showToast(`${(msg && msg.sender) || getPeerRoleName()} burned the conversation — disconnected.`, 'info');
         }
