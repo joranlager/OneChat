@@ -956,7 +956,7 @@
                 </div>
             </button>
 
-            <button onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
+            <button id="menu-swap-pip" onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="hidden w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
                 <i class="fa-solid fa-right-left text-base w-5 text-center"></i>
                 <div>
                     <div>Swap Large / Small Camera Window</div>
@@ -3084,6 +3084,8 @@ if __name__ == "__main__":
             const pipClasses = 'absolute bottom-20 right-4 w-28 h-40 sm:w-36 sm:h-52 rounded-2xl border-2 border-yellow-400 shadow-2xl overflow-hidden z-30 transition-all duration-300 bg-slate-950 cursor-pointer hover:scale-105';
             const fullClasses = 'absolute inset-0 w-full h-full flex items-center justify-center overflow-hidden z-10 transition-all duration-300 bg-black';
 
+            const menuSwap = document.getElementById('menu-swap-pip');
+            if (menuSwap) menuSwap.classList.toggle('hidden', !(ONECHAT_STATE.inCall && ONECHAT_STATE.isVideoCall));
             const stage = document.getElementById('onechat-media-stage');
             const feedCol = document.getElementById('onechat-feed-col');
             if (stage) stage.classList.toggle('hidden', !ONECHAT_STATE.inCall);
