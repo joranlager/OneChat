@@ -2925,7 +2925,10 @@ if __name__ == "__main__":
                     if (parsed.type === 'CHAT') {
                         appendChatMessage(parsed.sender || getPeerRoleName(), parsed.text, false);
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
+                    } else if (parsed.type === 'ONECHAT_TYPING') {
+                        showPeerTyping(parsed.sender || getPeerRoleName(), !!parsed.typing);
                     } else if (parsed.type === 'ONECHAT_MSG') {
+                        showPeerTyping(null, false);
                         appendOneChatEntry(parsed.sender || getPeerRoleName(), parsed.text, false, 'chat');
                     } else if (parsed.type === 'ONECHAT_SNAP') {
                         /* legacy inline snaps no longer used */
@@ -4231,6 +4234,55 @@ if __name__ == "__main__":
             showToast(`${(msg && msg.sender) || getPeerRoleName()} forgot the conversation — disconnected.`, 'info');
         }
 
+        /* ---------- Typing indicator ---------- */
+        const TYPING = { sentAt: 0, active: false, stopTimer: null, peerTimer: null };
+
+        function setOwnTyping(on) {
+            const dc = APP_STATE.dataChannel;
+            if (!dc || dc.readyState !== 'open') return;
+            const now = performance.now();
+            if (on) {
+                // announce at most every 2.5 s while typing
+                if (!TYPING.active || now - TYPING.sentAt > 2500) {
+                    TYPING.active = true; TYPING.sentAt = now;
+                    try { dc.send(JSON.stringify({ type: 'ONECHAT_TYPING', typing: true, sender: getRoleName(APP_STATE.role) })); } catch (e) {}
+                }
+                clearTimeout(TYPING.stopTimer);
+                TYPING.stopTimer = setTimeout(() => setOwnTyping(false), 4000);
+            } else {
+                clearTimeout(TYPING.stopTimer);
+                if (!TYPING.active) return;
+                TYPING.active = false;
+                try { dc.send(JSON.stringify({ type: 'ONECHAT_TYPING', typing: false, sender: getRoleName(APP_STATE.role) })); } catch (e) {}
+            }
+        }
+
+        function showPeerTyping(sender, on) {
+            const feed = document.getElementById('onechat-feed');
+            let el = document.getElementById('onechat-typing');
+            clearTimeout(TYPING.peerTimer);
+            if (!on) { if (el) el.remove(); return; }
+            if (!el) {
+                el = document.createElement('div');
+                el.id = 'onechat-typing';
+                el.className = 'pl-3 border-l-4 border-yellow-400/50 bg-slate-900/50 rounded-r-xl py-2 px-3 flex items-center gap-2 text-[11px] text-slate-300 italic';
+                el.innerHTML = '<span class="typing-name font-extrabold not-italic uppercase tracking-wider text-yellow-300/80"></span><span>is typing</span><span class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.15s"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.3s"></span></span>';
+            }
+            el.querySelector('.typing-name').textContent = sender || getPeerRoleName();
+            const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
+            feed.appendChild(el);
+            if (nearBottom) feed.scrollTop = feed.scrollHeight;
+            // safety: hide if no update arrives (e.g. the other side closed the app mid-typing)
+            TYPING.peerTimer = setTimeout(() => showPeerTyping(null, false), 6000);
+        }
+
+        (function initTypingInput() {
+            const input = document.getElementById('onechat-input');
+            if (!input) return;
+            input.addEventListener('input', () => setOwnTyping(input.value.trim().length > 0));
+            input.addEventListener('blur', () => setOwnTyping(false));
+        })();
+
         function appendOneChatEntry(sender, text, isSelf, kind = 'chat') {
             const feed = document.getElementById('onechat-feed');
             const isEphemeral = document.getElementById('onechat-ephemeral-toggle').checked;
@@ -4251,6 +4303,8 @@ if __name__ == "__main__":
                 <div class="text-slate-100 text-xs leading-relaxed break-words">${text.replace(/</g, '&lt;')}</div>
             `;
             feed.appendChild(item);
+            const typingEl = document.getElementById('onechat-typing');
+            if (typingEl) feed.appendChild(typingEl);
             feed.scrollTop = feed.scrollHeight;
 
             if (isEphemeral && kind === 'chat') {
@@ -4283,6 +4337,7 @@ if __name__ == "__main__":
             const text = input.value.trim();
             if (!text) return;
             input.value = '';
+            setOwnTyping(false);
 
             const myName = getRoleName(APP_STATE.role);
             const peerName = getPeerRoleName();
