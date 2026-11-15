@@ -964,7 +964,7 @@
                 </div>
             </button>
 
-            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 select-text">Build <span id="build-commit">—</span> · <span id="build-time">—</span></div>
+            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 select-text break-all">Commit <span id="build-commit">—</span> · <span id="build-time">—</span></div>
         </div>
 
         <!-- ONECHAT SETTINGS MODAL (TOP-RIGHT GEAR) -->
@@ -4327,8 +4327,7 @@ if __name__ == "__main__":
             if (!cEl || !tEl) return;
             const stamped = !BUILD_INFO.commit.startsWith('__');
             if (!stamped) { cEl.textContent = 'local'; tEl.textContent = 'not built'; return; }
-            cEl.textContent = BUILD_INFO.commit.slice(0, 7);
-            cEl.title = BUILD_INFO.commit;
+            cEl.textContent = BUILD_INFO.commit;
             const d = new Date(BUILD_INFO.time);
             tEl.textContent = isNaN(d) ? BUILD_INFO.time : new Intl.DateTimeFormat('en-GB', {
                 dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Oslo'
