@@ -5899,17 +5899,41 @@ if __name__ == "__main__":
             const candidates = sdp.split(/\r?\n/)
                 .filter(l => l.startsWith('a=candidate:') && / udp /i.test(l))
                 .map(l => l.slice('a=candidate:'.length).replace(/ generation \d+.*$/, '').trim());
+            const type = desc.type === 'offer' ? 'o' : 'a';
+            // v2: a smaller code means a bigger, easier-to-scan QR
+            const fp = pick(/a=fingerprint:(.+)/);                     // "sha-256 AB:CD:..."
+            const fpHex = (fp.split(' ')[1] || '').replace(/:/g, '');
+            const fpB64 = btoa(String.fromCharCode(...fpHex.match(/../g).map(h => parseInt(h, 16)))).replace(/=+$/, '');
+            const cands = [];
+            candidates.forEach(c => {
+                const p = c.split(' ');                                // foundation comp proto prio ip port typ type ...
+                const kind = p[7] === 'host' ? 'h' : (p[7] === 'srflx' ? 's' : '');
+                if (kind) cands.push([p[4], +p[5], kind, +p[3]]);
+            });
+            const setup = pick(/a=setup:(.+)/);
             const obj = {
-                v: 1,
-                t: desc.type === 'offer' ? 'o' : 'a',
+                v: 2, t: type,
                 u: pick(/a=ice-ufrag:(.+)/),
                 p: pick(/a=ice-pwd:(.+)/),
-                f: pick(/a=fingerprint:(.+)/),
-                s: pick(/a=setup:(.+)/),
-                c: candidates
+                f: fpB64,
+                c: cands
             };
+            if (setup && setup !== (type === 'o' ? 'actpass' : 'active')) obj.s = setup;
             if (MY_PROFILE.name) obj.n = encodeURIComponent(MY_PROFILE.name);
             return 'OC1:' + btoa(JSON.stringify(obj));
+        }
+
+        // Turn a decoded code (v1 or v2) into the full form the rest of the app uses
+        function expandCode(o) {
+            if (!o || o.v !== 2) return o;
+            let f = '';
+            try {
+                const bytes = atob(o.f + '='.repeat((4 - o.f.length % 4) % 4));
+                f = 'sha-256 ' + Array.from(bytes, ch => ch.charCodeAt(0).toString(16).padStart(2, '0').toUpperCase()).join(':');
+            } catch (e) { return null; }
+            const c = (o.c || []).map((x, i) =>
+                `${i + 1} 1 udp ${x[3]} ${x[0]} ${x[1]} typ ${x[2] === 's' ? 'srflx raddr 0.0.0.0 rport 0' : 'host'}`);
+            return { v: 1, t: o.t, u: o.u, p: o.p, f, s: o.s, c, n: o.n };
         }
 
         function basicBuildSdp(o) {
@@ -5969,6 +5993,9 @@ if __name__ == "__main__":
             return /^https?:$/.test(location.protocol) ? location.origin + location.pathname : 'https://joranlager.github.io/OneChat/';
         }
         // An Offer as a link: scanning it with any camera opens OneChat and joins right away
+        // True for a raw code (OC1:...) and for a join link (...#join=...)
+        function looksLikeOneChatCode(t) { return typeof t === 'string' && (t.includes('OC1:') || /#join=[A-Za-z0-9\-_+\/=:]/.test(t)); }
+
         // The code is made URL-safe (no + / = :) so chat apps keep the whole link clickable
         function joinLinkFor(code) {
             const safe = code.replace(/^OC1:/, '').replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
@@ -6202,7 +6229,7 @@ if __name__ == "__main__":
             const code = text.slice(idx).split(/\s/)[0];
             let o;
             try {
-                o = JSON.parse(atob(code.slice(4)));
+                o = expandCode(JSON.parse(atob(code.slice(4))));
                 if (!o || !o.u || !o.p || !o.f) throw new Error('incomplete');
             } catch (e) {
                 showToast('This QR code is damaged or incomplete. Try again.', 'error');
@@ -6303,7 +6330,7 @@ if __name__ == "__main__":
                 return;
             }
             const txt = e.clipboardData ? e.clipboardData.getData('text') : '';
-            if (txt && txt.includes('OC1:')) {
+            if (txt && looksLikeOneChatCode(txt)) {
                 e.preventDefault();
                 basicHandleCode(txt);
             }
@@ -6356,7 +6383,7 @@ if __name__ == "__main__":
                 const d = ctx.getImageData(0, 0, canvas.width, canvas.height);
                 const code = jsQR(d.data, d.width, d.height, { inversionAttempts: 'dontInvert' });
                 if (code && code.data) {
-                    if (code.data.includes('OC1:')) {
+                    if (looksLikeOneChatCode(code.data)) {
                         basicStopCamera();
                         basicHandleCode(code.data);
                         return;
@@ -6530,7 +6557,7 @@ if __name__ == "__main__":
                         <button type="button" data-jm="close" class="text-slate-400 hover:text-white p-1" title="Close"><i class="fa-solid fa-xmark"></i></button>
                     </div>
                     <div class="rounded-2xl bg-white p-2 flex items-center justify-center min-h-[200px]">
-                        <img id="jm-img" alt="Join me QR code" class="hidden w-full max-w-[260px]">
+                        <img id="jm-img" alt="Join me QR code" class="hidden w-full">
                         <i id="jm-spin" class="fa-solid fa-circle-notch fa-spin text-3xl text-slate-400"></i>
                     </div>
                     <p id="jm-hint" class="text-[11px] text-slate-400">Send the image or the link. Scanning or tapping it opens OneChat and joins you.</p>
