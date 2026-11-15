@@ -1109,7 +1109,7 @@
             </div>
 
             <!-- RIGHT / BOTTOM STAGE: SNAPCHAT CONVERSATION FEED -->
-            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden pt-[68px]">
+            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden pt-[84px]">
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                     <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
@@ -3719,6 +3719,18 @@ if __name__ == "__main__":
             const dc = APP_STATE.dataChannel;
             return !!(dc && dc.readyState === 'open');
         }
+
+        /* Keep the chat feed below the floating top bar, whatever height it wraps to */
+        (function syncOneChatTopInset() {
+            const overlay = document.getElementById('onechat-overlay');
+            const col = document.getElementById('onechat-feed-col');
+            const bar = overlay && overlay.querySelector(':scope > .absolute.top-0');
+            if (!bar || !col) return;
+            const apply = () => { if (bar.offsetHeight) col.style.paddingTop = (bar.offsetHeight + 12) + 'px'; };
+            apply();
+            if (window.ResizeObserver) new ResizeObserver(apply).observe(bar);
+            window.addEventListener('resize', apply);
+        })();
 
         /* ---------- Sending: original bytes, any type, chunked over the data channel ---------- */
         async function sendChatAttachment(file, opts) {
