@@ -178,9 +178,9 @@
         <header id="basic-header" class="shrink-0 h-[52px] px-2 sm:px-3 flex items-center gap-2 sm:gap-3 hud-glass border-t-0 border-x-0 relative z-[65]">
             <!-- Site QR (flush against the brand) + brand -->
             <div class="flex items-center min-w-0">
-                <a href="https://joranlager.github.io/OneChat/" target="_blank" rel="noopener" title="joranlager.github.io/OneChat" class="shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
-                    <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10"></div>
-                </a>
+                <button type="button" onclick="copySiteQr()" title="Click to copy this QR code as an image — paste it into any chat app" aria-label="Copy QR code image" class="cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
+                    <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
+                </button>
                 <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
                 <div class="hidden sm:block pl-2 min-w-0">
                     <div class="font-bold text-sm text-white leading-tight">OneChat</div>
@@ -306,9 +306,9 @@
             <!-- Brand & Title (QR code is the first item so it always sits flush against the brand icon) -->
             <div class="flex items-center gap-2 sm:gap-3 min-w-0">
                 <!-- Discreet QR code linking to the site (top-left corner); negative margin cancels the group gap -->
-                <a id="site-qr-link" href="https://joranlager.github.io/OneChat/" target="_blank" rel="noopener" title="joranlager.github.io/OneChat" class="shrink-0 self-center -mr-2 sm:-mr-3 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
-                    <div id="site-qr" class="w-9 h-9 sm:w-10 sm:h-10"></div>
-                </a>
+                <button type="button" onclick="copySiteQr()" title="Click to copy this QR code as an image — paste it into any chat app" aria-label="Copy QR code image" class="self-center -mr-2 sm:-mr-3 cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
+                    <div id="site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
+                </button>
                 <img src="icons/logo.webp" alt="OneChat logo" class="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-lg object-cover" width="36" height="36">
                 <div class="min-w-0">
                     <div class="flex items-center gap-1.5">
@@ -4686,6 +4686,35 @@ if __name__ == "__main__":
             try { if (localStorage.getItem('onechat-view-mode') === 'advanced') mode = 'advanced'; } catch (e) {}
             setViewMode(mode);
             setInterval(basicPoll, 500);
+        }
+
+        /* ----- Header QR code: copy as an image so it can be pasted straight into a chat app ----- */
+        let siteQrCanvas = null;
+        async function copySiteQr() {
+            if (!siteQrCanvas) {
+                siteQrCanvas = basicMakeQrCanvas('https://joranlager.github.io/OneChat/', 'OneChat', 'Scan to open the app');
+            }
+            const blob = await new Promise((resolve) => siteQrCanvas.toBlob(resolve, 'image/png'));
+            try {
+                await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+                showToast('QR code image copied — paste it into any chat app.', 'success');
+                return;
+            } catch (e) { /* try sharing, then saving */ }
+            try {
+                const file = new File([blob], 'onechat-qr.png', { type: 'image/png' });
+                if (navigator.canShare && navigator.canShare({ files: [file] })) {
+                    await navigator.share({ files: [file], title: 'OneChat', text: 'https://joranlager.github.io/OneChat/' });
+                    return;
+                }
+            } catch (e) {
+                if (e && e.name === 'AbortError') return;
+            }
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url; a.download = 'onechat-qr.png';
+            document.body.appendChild(a); a.click(); document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 2000);
+            showToast('Copying images is blocked here, so the QR code image was saved instead.', 'warn');
         }
 
         // Start Everything on Window Load

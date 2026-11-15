@@ -23,10 +23,11 @@ jobs:
 
       - name: Stage site
         # main holds only the onechat page (index.html at the repo root).
-        # Copy just that file so nothing else in the repo is published.
+        # Copy only the page and its assets so nothing else in the repo is published.
         run: |
           mkdir -p _site
-          cp index.html _site/
+          cp index.html manifest.webmanifest OneChat.webp _site/
+          cp -r icons _site/
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
