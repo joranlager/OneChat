@@ -4164,10 +4164,44 @@ if __name__ == "__main__":
                 o.connect(g).connect(out); o.start(t0); o.stop(t0 + 0.72);
             });
         }
-        function userEndOneChatCall(withSound) {
+        // In-app confirmation sheet. A browser confirm() blocks the page, and on phones that freezes
+        // the call's video; this keeps the video running while the question is shown.
+        function ocConfirm(message, okLabel) {
+            return new Promise((resolve) => {
+                document.getElementById('oc-confirm')?.remove();
+                const m = document.createElement('div');
+                m.id = 'oc-confirm';
+                m.className = 'fixed inset-0 z-[200] bg-black/50 flex items-end sm:items-center justify-center p-3';
+                m.innerHTML = `
+                    <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-white/10 shadow-2xl overflow-hidden text-center">
+                        <div class="px-4 py-4 text-sm font-semibold text-white"></div>
+                        <div class="grid grid-cols-2 border-t border-white/10 divide-x divide-white/10 text-sm">
+                            <button type="button" data-v="0" class="min-h-[48px] text-cyan-400 hover:bg-white/5">Cancel</button>
+                            <button type="button" data-v="1" class="min-h-[48px] text-rose-400 font-semibold hover:bg-white/5"></button>
+                        </div>
+                    </div>`;
+                m.querySelector('.px-4').textContent = message;
+                m.querySelector('[data-v="1"]').textContent = okLabel || 'OK';
+                const done = (v) => { m.remove(); resolve(v); };
+                m.addEventListener('click', (e) => {
+                    if (e.target === m) return done(false);
+                    const b = e.target.closest('[data-v]');
+                    if (b) done(b.dataset.v === '1');
+                });
+                document.body.appendChild(m);
+            });
+        }
+
+        async function userEndOneChatCall(withSound) {
             if (withSound) hangupCtx();   // unlock audio while the tap still counts as a user gesture
             const what = ONECHAT_STATE.isVideoCall ? 'video call' : 'call';
-            if (!confirm('End the ' + what + '?')) return;
+            const ok = await ocConfirm('End the ' + what + '?', 'End call');
+            if (!ok) {
+                // make sure the call's video keeps playing
+                document.querySelectorAll('#onechat-media-stage video').forEach(v => { if (v.srcObject && v.paused) v.play().catch(() => {}); });
+                return;
+            }
+            if (!ONECHAT_STATE.inCall) return;   // the other side hung up meanwhile
             const sound = withSound ? getHangupSound() : null;
             if (sound) playHangupSound(sound);
             endOneChatCall(false, sound);   // the other side plays the same sound
