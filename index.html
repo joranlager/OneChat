@@ -3471,7 +3471,65 @@ if __name__ == "__main__":
                 remoteContainer.className = pipClasses;
                 if (swapBtnText) swapBtnText.textContent = `Show ${getPeerRoleName()} large`;
             }
+            positionOneChatPip(ONECHAT_STATE.localIsSmallPip ? localContainer : remoteContainer,
+                               ONECHAT_STATE.localIsSmallPip ? remoteContainer : localContainer);
         }
+
+        /* ---------- Movable PiP: hold the small window and drag it anywhere on the video ---------- */
+        function positionOneChatPip(pip, full) {
+            [pip, full].forEach(el => { if (el) { el.style.left = el.style.top = el.style.right = el.style.bottom = ''; el.style.touchAction = ''; } });
+            if (!pip) return;
+            pip.style.touchAction = 'none';   // dragging must not scroll the page
+            const pos = ONECHAT_STATE.pipPos;
+            const stage = document.getElementById('onechat-media-stage');
+            if (!pos || !stage) return;
+            const place = () => {
+                const sw = stage.clientWidth, sh = stage.clientHeight, pw = pip.offsetWidth, ph = pip.offsetHeight;
+                if (!sw || !sh || pw > sw / 2) return;   // still resizing from full size
+                pip.style.left = Math.max(8, Math.min(sw - pw - 8, pos.x * sw)) + 'px';
+                pip.style.top = Math.max(8, Math.min(sh - ph - 8, pos.y * sh)) + 'px';
+                pip.style.right = pip.style.bottom = 'auto';
+            };
+            requestAnimationFrame(place);
+            setTimeout(place, 350);   // again once the size animation has finished
+        }
+        (function initOneChatPipDrag() {
+            const isPip = (el) => ONECHAT_STATE.inCall && ONECHAT_STATE.isVideoCall &&
+                ((el.id === 'onechat-local-pip') === ONECHAT_STATE.localIsSmallPip);
+            ['onechat-local-pip', 'onechat-remote-container'].forEach((id) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                let drag = null;
+                el.addEventListener('pointerdown', (e) => {
+                    if (!isPip(el)) return;
+                    const stage = document.getElementById('onechat-media-stage');
+                    drag = { id: e.pointerId, sx: e.clientX, sy: e.clientY, ox: el.offsetLeft, oy: el.offsetTop, moved: false, stage };
+                    el.setPointerCapture(e.pointerId);
+                });
+                el.addEventListener('pointermove', (e) => {
+                    if (!drag || e.pointerId !== drag.id) return;
+                    const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+                    if (!drag.moved && Math.hypot(dx, dy) < 6) return;
+                    if (!drag.moved) { drag.moved = true; el.style.transition = 'none'; }
+                    const sw = drag.stage.clientWidth, sh = drag.stage.clientHeight;
+                    el.style.left = Math.max(8, Math.min(sw - el.offsetWidth - 8, drag.ox + dx)) + 'px';
+                    el.style.top = Math.max(8, Math.min(sh - el.offsetHeight - 8, drag.oy + dy)) + 'px';
+                    el.style.right = el.style.bottom = 'auto';
+                });
+                const end = (e) => {
+                    if (!drag || e.pointerId !== drag.id) return;
+                    if (drag.moved) {
+                        el.style.transition = '';
+                        ONECHAT_STATE.pipPos = { x: el.offsetLeft / drag.stage.clientWidth, y: el.offsetTop / drag.stage.clientHeight };
+                        ONECHAT_STATE.pipJustDragged = true;   // the click that follows must not swap
+                        setTimeout(() => { ONECHAT_STATE.pipJustDragged = false; }, 50);
+                    }
+                    drag = null;
+                };
+                el.addEventListener('pointerup', end);
+                el.addEventListener('pointercancel', end);
+            });
+        })();
 
         function swapOneChatPipView() {
             if (!ONECHAT_STATE.inCall) {
@@ -3493,7 +3551,7 @@ if __name__ == "__main__":
         }
 
         function onVideoContainerClick(which) {
-            if (!ONECHAT_STATE.inCall) return;
+            if (!ONECHAT_STATE.inCall || ONECHAT_STATE.pipJustDragged) return;
             // Tapping the big video toggles full screen (menus hidden) during a video call
             const isLarge = (which === 'remote') === ONECHAT_STATE.localIsSmallPip;
             if (isLarge) {
