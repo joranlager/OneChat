@@ -284,7 +284,6 @@
             <div class="mx-auto w-full max-w-xl space-y-4">
                 <div>
                     <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Connect</h2>
-                    <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pair two devices directly — no servers, no accounts. Swap two QR codes, an <strong class="text-cyan-300">Offer</strong> and an <strong class="text-emerald-300">Answer</strong>, by camera or through any chat app.</p>
                 </div>
 
                 <!-- Who you are / who you connect with -->
@@ -311,7 +310,6 @@
                             <span class="w-9 h-9 shrink-0 rounded-[10px] bg-cyan-600 text-white flex items-center justify-center"><i class="fa-solid fa-paper-plane text-sm"></i></span>
                             <span class="flex-1 min-w-0">
                                 <span class="block text-white font-semibold text-[15px]">Start a connection</span>
-                                <span class="block text-xs text-slate-400 mt-0.5">Create an Offer QR code and send it to the other person.</span>
                             </span>
                             <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
                         </button>
@@ -319,25 +317,28 @@
                             <span class="w-9 h-9 shrink-0 rounded-[10px] bg-emerald-500 text-white flex items-center justify-center"><i class="fa-solid fa-right-to-bracket text-sm"></i></span>
                             <span class="flex-1 min-w-0">
                                 <span class="block text-white font-semibold text-[15px]">Join a connection</span>
-                                <span class="block text-xs text-slate-400 mt-0.5">Scan or paste an Offer QR code you received.</span>
                             </span>
                             <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
                         </button>
                     </div>
                     <label class="flex items-start gap-2.5 p-4 rounded-2xl bg-slate-900 text-xs text-slate-300 cursor-pointer">
                         <input id="basic-use-stun" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
-                        <span><strong class="text-white">Connect across the internet</strong> — uses a public STUN server (stun.l.google.com) to discover your public address. Leave this off for devices on the same network; nothing then leaves your devices. The joining side switches this on automatically when the Offer needs it.</span>
+                        <span class="text-sm text-white font-medium">Connect across the internet</span>
                     </label>
                 </section>
 
                 <!-- QR output card (Offer or Answer) -->
+                <!-- Swipe indicator (only when both steps are shown) -->
+                <div id="basic-step-dots" class="hidden flex items-center justify-center gap-3 text-[11px] font-mono font-bold">
+                    <button id="basic-dot-1" onclick="basicGoToStep(0)" class="px-3 py-1 rounded-full border border-cyan-500/40 text-cyan-300">1 · Offer</button>
+                    <button id="basic-dot-2" onclick="basicGoToStep(1)" class="px-3 py-1 rounded-full border border-emerald-500/40 text-emerald-300">2 · Answer</button>
+                </div>
                 <div id="basic-steps" class="flex items-start gap-3 overflow-x-auto snap-x snap-mandatory" style="scrollbar-width:none;overscroll-behavior-x:contain">
                 <section id="basic-qr-card" class="hidden hud-glass rounded-2xl p-4 space-y-3 w-full shrink-0 snap-center">
                     <div class="flex items-center gap-2">
                         <span id="basic-qr-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono font-bold">STEP 1</span>
                         <h3 id="basic-qr-title" class="font-bold text-white text-base">Your Offer</h3>
                     </div>
-                    <p id="basic-qr-hint" class="text-xs text-slate-400 leading-relaxed"></p>
                     <div class="flex justify-center">
                         <img id="basic-qr-img" alt="QR code to copy, save or scan" class="w-full max-w-[320px] rounded-xl bg-white shadow-xl">
                     </div>
@@ -355,7 +356,6 @@
                         <span id="basic-scan-badge" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[11px] font-mono font-bold">STEP 2</span>
                         <h3 id="basic-scan-title" class="font-bold text-white text-base">Scan their Answer</h3>
                     </div>
-                    <p id="basic-scan-hint" class="text-xs text-slate-400 leading-relaxed"></p>
                     <div id="basic-camera-wrap" class="hidden relative rounded-xl overflow-hidden bg-black aspect-square max-w-[320px] mx-auto border border-cyan-500/40">
                         <video id="basic-video" playsinline muted class="w-full h-full object-cover"></video>
                         <canvas id="basic-scan-canvas" class="hidden"></canvas>
@@ -369,7 +369,6 @@
                         </label>
                         <button onclick="basicPasteFromClipboard()" class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5"><i class="fa-solid fa-paste"></i> Paste</button>
                     </div>
-                    <p class="text-[11px] text-slate-500">Tip: you can also press <kbd class="px-1 rounded bg-slate-800 border border-slate-700">Ctrl</kbd>+<kbd class="px-1 rounded bg-slate-800 border border-slate-700">V</kbd> anywhere on this page to paste a QR image or code you copied from a chat.</p>
                     <details class="text-xs text-slate-400">
                         <summary class="cursor-pointer hover:text-slate-200">Paste the code as text instead</summary>
                         <div class="mt-2 space-y-2">
@@ -378,12 +377,6 @@
                         </div>
                     </details>
                 </section>
-                </div>
-                <!-- Swipe indicator (only when both steps are shown) -->
-                <div id="basic-step-dots" class="hidden flex items-center justify-center gap-3 text-[11px] font-mono font-bold">
-                    <button id="basic-dot-1" onclick="basicGoToStep(0)" class="px-3 py-1 rounded-full border border-cyan-500/40 text-cyan-300">1 · Offer</button>
-                    <span class="text-slate-500">⟷ swipe</span>
-                    <button id="basic-dot-2" onclick="basicGoToStep(1)" class="px-3 py-1 rounded-full border border-emerald-500/40 text-emerald-300">2 · Answer</button>
                 </div>
 
                 <!-- Connected card -->
@@ -394,7 +387,6 @@
                         <div id="basic-done-avatar" class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden"></div>
                         <span id="basic-done-name" class="text-sm font-bold text-emerald-200"></span>
                     </div>
-                    <p class="text-xs text-slate-300">A direct, encrypted peer-to-peer link is open. Nothing goes through a server.</p>
                     <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-sm inline-flex items-center gap-2 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
                 </section>
 
@@ -975,13 +967,7 @@
             <div class="w-20 h-20 rounded-3xl bg-yellow-400/15 border-2 border-yellow-400/50 flex items-center justify-center text-yellow-400 text-4xl mb-4 animate-bounce">
                 <i class="fa-solid fa-ghost"></i>
             </div>
-            <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/90 border border-rose-500/40 text-rose-300 text-xs font-mono mb-2">
-                <i class="fa-solid fa-lock"></i> Requires Active P2P Connection
-            </div>
-            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">OneChat is locked until the connection is established</h2>
-            <p class="text-xs sm:text-sm text-slate-400 max-w-md mt-2 leading-relaxed">
-                Connect <strong class="text-cyan-300">OneGiver</strong> and <strong class="text-emerald-300">OneReceiver</strong> through the firewalls first to unlock direct chat, picture Snaps and P2P video calls.
-            </p>
+            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Connect to use OneChat</h2>
             <div class="flex flex-wrap items-center justify-center gap-3 mt-6">
                 <button onclick="basicShowTab('connect')" class="basic-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 transition transform active:scale-95">
                     <i class="fa-solid fa-qrcode"></i> Go to Connect
@@ -1049,7 +1035,6 @@
                 <i class="fa-solid fa-qrcode text-base w-5 text-center"></i>
                 <div>
                     <div>Back to Connect</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Pair with someone else</div>
                 </div>
             </button>
 
@@ -1057,7 +1042,6 @@
                 <i class="fa-solid fa-cubes text-base w-5 text-center"></i>
                 <div>
                     <div>Back to 3D Network</div>
-                    <div class="text-[10px] text-slate-400 font-normal">See firewalls and UDP packets in 3D</div>
                 </div>
             </button>
 
@@ -1065,7 +1049,6 @@
                 <i class="fa-solid fa-right-left text-base w-5 text-center"></i>
                 <div>
                     <div>Swap Large / Small Camera Window</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Switch between your camera and the peer</div>
                 </div>
             </button>
 
@@ -1073,7 +1056,6 @@
                 <i class="fa-solid fa-broom text-base w-5 text-center"></i>
                 <div>
                     <div>Clear OneChat history</div>
-                    <div class="text-[10px] text-slate-400 font-normal">Delete all displayed messages and Snaps</div>
                 </div>
             </button>
 
@@ -1096,7 +1078,6 @@
             <div class="flex items-center gap-3">
                 <div id="settings-my-avatar" class="w-11 h-11 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden shrink-0"></div>
                 <div class="flex-1 min-w-0">
-                    <div class="text-[10px] text-slate-400">Your name and picture</div>
                     <div id="settings-my-name" class="text-sm font-bold text-white truncate"></div>
                 </div>
                 <button onclick="toggleOneChatSettingsModal(); openProfileEditor();" class="px-3 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 font-semibold flex items-center gap-1.5"><i class="fa-solid fa-user-pen"></i> Edit</button>
@@ -1127,10 +1108,6 @@
                 </div>
             </div>
 
-            <p class="text-[10px] leading-snug text-slate-500 border-t border-slate-800/80 pt-2">
-                <i class="fa-solid fa-camera-retro"></i> Screenshot notice: the other person is told when a screenshot shortcut is used on a computer.
-                Screenshots and screen recordings made on a phone cannot be detected by a web app.
-            </p>
 
             <!-- Video Stream Quality & FPS -->
             <div class="space-y-1 pt-2 border-t border-slate-800/80">
@@ -1257,10 +1234,6 @@
             <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-slate-950 border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden">
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
-                    <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
-                        <div class="text-yellow-400 font-bold text-xs">👻 OneGiver & OneReceiver Fullscreen</div>
-                        <p class="text-[11px] text-slate-400">During a video call your own camera is small in the corner by default. Tap the small window at any time to swap which one is large and small!</p>
-                    </div>
                 </div>
 
                 <!-- Quick Reaction Bar -->
@@ -1383,7 +1356,6 @@
                 <span class="text-slate-400">Name</span>
                 <input id="pm-name" type="text" maxlength="30" placeholder="Your name" class="w-full min-h-[40px] bg-slate-950 border border-slate-700 rounded-lg px-3 text-sm text-white focus:border-yellow-400 focus:outline-none">
             </label>
-            <p class="text-[10px] text-slate-500">Shown to the person you connect with, and when you call them. Stored only on this device.</p>
             <div class="flex gap-2">
                 <button type="button" onclick="closeProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-slate-800 hover:bg-slate-700 font-semibold">Cancel</button>
                 <button type="button" onclick="saveProfileEditor()" class="flex-1 min-h-[40px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold">Save</button>
@@ -6202,18 +6174,14 @@ if __name__ == "__main__":
             if (step === 'host-offer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 1';
                 basicEl('basic-qr-title').textContent = 'Your Offer';
-                basicEl('basic-qr-hint').textContent = 'Send this QR image to the other person (copy it into any chat app) or let them scan your screen.';
                 basicEl('basic-scan-badge').textContent = 'STEP 2';
                 basicEl('basic-scan-title').textContent = 'Scan their Answer';
-                basicEl('basic-scan-hint').textContent = 'When they send their Answer QR code back, scan it here — or upload / paste the image.';
             } else if (step === 'guest-scan') {
                 basicEl('basic-scan-badge').textContent = 'STEP 1';
                 basicEl('basic-scan-title').textContent = 'Scan the Offer';
-                basicEl('basic-scan-hint').textContent = 'Scan the Offer QR code you received with your camera — or upload / paste the image.';
             } else if (step === 'guest-answer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 2';
                 basicEl('basic-qr-title').textContent = 'Your Answer';
-                basicEl('basic-qr-hint').textContent = 'Send this QR image back (copy it into the same chat) or show it on your screen. Once they scan it, you are connected.';
             }
             basicEl('basic-btn-share').classList.toggle('hidden', !(navigator.canShare && navigator.share));
             basicUpdateStatus();
