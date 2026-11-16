@@ -6608,7 +6608,7 @@ if __name__ == "__main__":
 
             let msg = '';
             if (!connected && APP_STATE.rtcPeer && (ice === 'checking')) msg = 'Establishing the direct link…';
-            if (!connected && (ice === 'failed')) msg = 'The direct link could not be established. Both devices need a network path to each other — same Wi-Fi works best, or tick “Connect across the internet” and start over.';
+            if (!connected && (ice === 'failed')) msg = 'The direct link could not be established. Both devices need a network path to each other — same Wi-Fi works best, or turn on “Connect across the internet” in Settings and start over.';
             if (BASIC.busy) msg = 'Working…';
             line.textContent = msg;
             line.classList.toggle('hidden', !msg);
@@ -6623,7 +6623,8 @@ if __name__ == "__main__":
                 basicStopCamera();
                 basicStopPunching();
                 basicRender();
-                showToast('Connected! Open OneChat to start talking.', 'success');
+                basicShowTab('onechat');   // straight into the chat
+                showToast('Connected!', 'success');
             } else if (!connected && BASIC.step === 'connected') {
                 showToast('The connection was closed.', 'warn');
                 appendOneChatSystem('⚠️ The connection was closed. Use Connect to pair again.', 'bad');
