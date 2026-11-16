@@ -1258,7 +1258,7 @@
         </div>
         <img id="snap-viewer-img" src="" alt="Snap" class="max-w-full max-h-[70dvh] rounded-2xl border border-yellow-400/40 shadow-2xl object-contain">
         <div id="snap-viewer-caption" class="mt-3 px-4 py-2 rounded-xl bg-black/80 text-white font-bold text-sm text-center"></div>
-        <div class="mt-4 flex items-center gap-3 text-2xl">
+        <div id="snap-viewer-reacts" class="mt-4 flex items-center gap-3 text-2xl">
             <button onclick="sendSnapReaction(null,'❤️')" class="hover:scale-125 transition">❤️</button>
             <button onclick="sendSnapReaction(null,'😂')" class="hover:scale-125 transition">😂</button>
             <button onclick="sendSnapReaction(null,'😮')" class="hover:scale-125 transition">😮</button>
@@ -1267,7 +1267,7 @@
         </div>
         <div class="mt-4 flex items-center gap-3">
             <button id="snap-viewer-download" onclick="downloadCurrentSnap()" class="hidden px-4 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-download"></i> Download</button>
-            <button onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
+            <button id="snap-viewer-reply" onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
             <button onclick="closeSnapViewer()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-xmark"></i> Close</button>
         </div>
     </div>
@@ -3420,7 +3420,7 @@ if __name__ == "__main__":
             const stage = document.getElementById('onechat-media-stage');
             const feedCol = document.getElementById('onechat-feed-col');
             if (stage) stage.classList.toggle('hidden', !ONECHAT_STATE.inCall);
-            if (!(ONECHAT_STATE.inCall && ONECHAT_STATE.isVideoCall)) {
+            if (!ONECHAT_STATE.inCall) {
                 if (stage) stage.classList.remove('oc-call-compact');
                 const g = document.getElementById('onechat-body-grid');
                 if (g) g.style.gridTemplateRows = '';
@@ -3442,8 +3442,17 @@ if __name__ == "__main__":
 
             updateAudioCallPeerPhoto();
             if (!ONECHAT_STATE.isVideoCall) {
-                // Audio call: no camera windows, only the peer avatar stage
-                remoteContainer.className = fullClasses;
+                // Audio call: no camera windows, only the peer avatar stage.
+                // Swiped up (compact): a short strip above the buttons, the chat gets the rest.
+                const compactA = !!ONECHAT_STATE.callCompact;
+                stage.classList.toggle('oc-call-compact', compactA);
+                const gridA = document.getElementById('onechat-body-grid');
+                if (gridA) gridA.style.gridTemplateRows = compactA && window.innerWidth < 1024 ? 'auto minmax(0,1fr)' : '';
+                remoteContainer.className = compactA
+                    ? 'absolute inset-x-0 top-0 bottom-16 flex items-center justify-center overflow-hidden z-10 bg-black'
+                    : fullClasses;
+                remoteContainer.style.left = remoteContainer.style.top = remoteContainer.style.right = remoteContainer.style.bottom = '';
+                remoteContainer.style.touchAction = 'none';   // swipes reach the app
                 localContainer.className = 'hidden';
                 if (swapBadge) swapBadge.classList.add('hidden');
                 if (localLabel) localLabel.classList.add('hidden');
@@ -3559,8 +3568,9 @@ if __name__ == "__main__":
 
         /* ---------- Swipe the main video: up = both feeds small (chat gets the room), down = large again ---------- */
         (function initOneChatCallSwipe() {
-            const isMain = (el) => ONECHAT_STATE.inCall && ONECHAT_STATE.isVideoCall &&
-                ((el.id === 'onechat-remote-container') === ONECHAT_STATE.localIsSmallPip);
+            const isMain = (el) => ONECHAT_STATE.inCall && (ONECHAT_STATE.isVideoCall
+                ? (el.id === 'onechat-remote-container') === ONECHAT_STATE.localIsSmallPip
+                : el.id === 'onechat-remote-container');
             ['onechat-local-pip', 'onechat-remote-container'].forEach((id) => {
                 const el = document.getElementById(id);
                 if (!el) return;
@@ -3568,6 +3578,7 @@ if __name__ == "__main__":
                 el.addEventListener('pointerdown', (e) => {
                     if (!isMain(el)) return;
                     sw = { id: e.pointerId, x: e.clientX, y: e.clientY };
+                    try { el.setPointerCapture(e.pointerId); } catch (err) {}   // the swipe may end outside the video
                 });
                 const end = (e) => {
                     if (!sw || e.pointerId !== sw.id) return;
@@ -4458,12 +4469,12 @@ if __name__ == "__main__":
                 const c = b.card.querySelector('.xfer-cancel'); if (c) c.remove();
                 const pz = b.card.querySelector('.xfer-pause'); if (pz) pz.remove();
                 if (b.dir === 'in' && b.accepted) offerBatchZipSave(b);
-                if (b.dir === 'in' && nDone > 0) {
+                if (nDone > 0) {
                     const z = document.createElement('button');
                     z.type = 'button';
                     z.className = 'px-3 h-8 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-[11px] flex items-center gap-1.5 shrink-0';
                     z.innerHTML = '<i class="fa-solid fa-file-zipper"></i> ZIP';
-                    z.title = 'Download all received files as one ZIP';
+                    z.title = b.dir === 'in' ? 'Download all received files as one ZIP' : 'Download all sent files as one ZIP';
                     z.onclick = () => downloadBatchZip(b.id);
                     b.card.appendChild(z);
                 }
@@ -4655,6 +4666,7 @@ if __name__ == "__main__":
                     if (it.cancelled) continue;
                 }
                 it.state = 'active';
+                it.blob = fileList[i];   // keep it so the sender can download it again
                 refreshBatch(b, true);
                 const ok = await sendChatAttachment(fileList[i], { kind: 'file', mode: 'download', batch: b, batchItem: it });
                 if (ok) { it.state = 'done'; refreshBatch(b, true); continue; }
@@ -4927,6 +4939,7 @@ if __name__ == "__main__":
             dc.send(JSON.stringify({ type: 'FILE_END', id: meta.id }));
             if (bItem) { bItem.done = file.size; return true; }
             status.textContent = describeSent(meta, isImage);
+            keepSentCopy(meta, file, isImage);
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.3);
             return true;
         }
@@ -5162,6 +5175,28 @@ if __name__ == "__main__":
             const what = meta.kind === 'snap' ? 'Snap' : (isImage ? 'Picture' : meta.name);
             if (!isImage) return `Sent ${meta.name} (${fmtBytes(meta.size)})`;
             return `${what} sent — ${meta.mode === 'ephemeral' ? 'view once, no download' : 'download allowed'}`;
+        }
+
+        // The sender keeps their own copy, so they can view and download what they sent
+        function keepSentCopy(meta, file, isImage) {
+            ATT_STORE.set(meta.id, {
+                url: URL.createObjectURL(file), name: meta.name, mime: meta.mime, size: meta.size,
+                mode: 'download', viewSec: 0, caption: meta.caption, kind: meta.kind, sender: meta.sender, isImage, own: true
+            });
+            const card = SNAP_CARDS.get(meta.id);
+            if (!card) return;
+            const id = meta.id;
+            const status = escHtml(describeSent(meta, isImage));
+            card.innerHTML = `
+                ${isImage
+                    ? `<button onclick="openSnapViewer('${id}')" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-rose-300 flex items-center justify-center shrink-0 transition active:scale-90" title="View"><i class="fa-solid fa-image"></i></button>`
+                    : `<span class="w-9 h-9 rounded-full bg-slate-800 text-rose-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-file"></i></span>`}
+                <div class="flex-1 min-w-0">
+                    <div class="font-bold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(meta.sender)}</div>
+                    ${isImage ? '' : `<div class="text-[11px] text-slate-200 truncate">${escHtml(meta.name)}</div>`}
+                    <div class="snap-status text-[10px] text-slate-400">${status}</div>
+                </div>
+                <button onclick="downloadAttachment('${id}')" class="w-8 h-8 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white flex items-center justify-center shrink-0" title="Download"><i class="fa-solid fa-download text-xs"></i></button>`;
         }
 
         function appendSentAttachmentCard(meta, isImage) {
@@ -5406,6 +5441,9 @@ if __name__ == "__main__":
             cap.classList.toggle('hidden', !att.caption);
             document.getElementById('snap-viewer-modal').classList.remove('hidden');
             document.getElementById('snap-viewer-download').classList.toggle('hidden', att.mode !== 'download');
+            // your own picture: no reactions or reply
+            document.getElementById('snap-viewer-reacts').classList.toggle('hidden', !!att.own);
+            document.getElementById('snap-viewer-reply').classList.toggle('hidden', !!att.own);
 
             const timerEl = document.getElementById('snap-viewer-timer');
             if (ONECHAT_STATE.snapViewerInterval) clearInterval(ONECHAT_STATE.snapViewerInterval);
