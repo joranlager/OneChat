@@ -241,11 +241,8 @@
         <!-- Basic top bar -->
         <header id="basic-header" class="shrink-0 h-[52px] px-3 hud-glass border-t-0 border-x-0 relative z-[65]">
             <div class="mx-auto w-full max-w-xl h-full flex items-center gap-2 sm:gap-3 relative">
-            <!-- Site QR (flush against the brand) + brand -->
+            <!-- Brand -->
             <div class="flex items-center min-w-0">
-                <button type="button" onclick="copySiteQr()" title="Join me: a QR image and link that let someone join you" aria-label="Show Join me QR code and link" class="cursor-copy shrink-0 p-0.5 rounded bg-white opacity-70 hover:opacity-100 transition-opacity leading-none">
-                    <div id="basic-site-qr" class="w-9 h-9 sm:w-10 sm:h-10 pointer-events-none"></div>
-                </button>
                 <button type="button" onclick="toggleAboutPopover(event)" title="About OneChat" aria-label="About OneChat" class="flex items-center min-w-0 text-left rounded-lg hover:bg-white/5 transition">
                     <img src="icons/logo.webp?v=3" alt="OneChat logo" class="h-10 sm:h-11 w-auto shrink-0 rounded-lg" width="41" height="40">
                     <div class="hidden sm:block pl-2 min-w-0">
@@ -6233,7 +6230,7 @@ if __name__ == "__main__":
                 basicEl('basic-qr-badge').textContent = 'STEP 2';
                 basicEl('basic-qr-title').textContent = 'Your Accept';
             }
-            basicEl('basic-btn-share').classList.toggle('hidden', !(navigator.canShare && navigator.share));
+            basicEl('basic-btn-share').classList.toggle('hidden', BASIC.kind !== 'offer' && !(navigator.canShare && navigator.share));
             basicUpdateStatus();
         }
 
@@ -6631,19 +6628,76 @@ if __name__ == "__main__":
             setTimeout(() => URL.revokeObjectURL(url), 2000);
         }
 
+        // Share… : choose whether the message carries the join link, the QR image, or both
         async function basicShareImage() {
             if (!BASIC.qrCanvas) return;
+            const isInvite = BASIC.kind === 'offer';
+            const link = isInvite ? joinLinkFor(BASIC.code) : '';
             const blob = await basicQrBlob();
-            const file = new File([blob], 'onechat-' + BASIC.kind + '.png', { type: 'image/png' });
-            if (navigator.canShare && navigator.canShare({ files: [file] })) {
+            const file = new File([blob], 'onechat-' + (isInvite ? 'invitation' : 'accept') + '.png', { type: 'image/png' });
+            const canShareFile = !!(navigator.share && navigator.canShare && navigator.canShare({ files: [file] }));
+            if (!isInvite) {
+                // an Accept is only useful as the QR image
                 try {
-                    await navigator.share({ files: [file], title: 'OneChat ' + BASIC.kind, text: 'Scan this QR code with OneChat: https://joranlager.github.io/OneChat/' });
-                    return;
-                } catch (e) {
-                    if (e && e.name === 'AbortError') return;
-                }
+                    if (canShareFile) { await navigator.share({ files: [file], title: 'OneChat — Accept' }); return; }
+                } catch (e) { if (e && e.name === 'AbortError') return; }
+                showToast('Sharing is not supported here — use Copy image or Save image.', 'info');
+                return;
             }
-            showToast('Sharing is not supported here — use Copy image or Save image.', 'info');
+
+            document.getElementById('share-invite-modal')?.remove();
+            const m = document.createElement('div');
+            m.id = 'share-invite-modal';
+            m.className = 'fixed inset-0 z-[90] bg-black/70 backdrop-blur-sm flex items-end sm:items-center justify-center p-3';
+            m.innerHTML = `
+                <div class="w-full max-w-sm rounded-2xl bg-slate-900 border border-white/10 p-4 space-y-3 shadow-2xl text-sm text-slate-200">
+                    <div class="flex items-center justify-between">
+                        <h3 class="font-semibold text-white">Share invitation</h3>
+                        <button type="button" data-si="close" class="text-slate-400 hover:text-white p-1" title="Close"><i class="fa-solid fa-xmark"></i></button>
+                    </div>
+                    <div class="rounded-xl bg-slate-800 divide-y divide-white/10">
+                        <label class="flex items-center justify-between px-3 min-h-[46px] cursor-pointer"><span>Include link</span><input id="si-link" type="checkbox" checked class="w-5 h-5 rounded"></label>
+                        <label class="flex items-center justify-between px-3 min-h-[46px] cursor-pointer"><span>Include QR code</span><input id="si-qr" type="checkbox" checked class="w-5 h-5 rounded"></label>
+                    </div>
+                    <button type="button" data-si="share" class="w-full min-h-[46px] rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-semibold flex items-center justify-center gap-2"><i class="fa-solid fa-share-nodes"></i> Share</button>
+                </div>`;
+            document.body.appendChild(m);
+            const linkBox = m.querySelector('#si-link'), qrBox = m.querySelector('#si-qr'), shareBtn = m.querySelector('[data-si="share"]');
+            const sync = () => { shareBtn.disabled = !linkBox.checked && !qrBox.checked; shareBtn.classList.toggle('opacity-40', shareBtn.disabled); };
+            linkBox.onchange = sync; qrBox.onchange = sync;
+
+            m.addEventListener('click', async (e) => {
+                if (e.target === m) { m.remove(); return; }
+                const btn = e.target.closest('[data-si]');
+                if (!btn) return;
+                if (btn.dataset.si === 'close') { m.remove(); return; }
+                if (btn.disabled) return;
+                const withLink = linkBox.checked, withQr = qrBox.checked;
+                const text = withLink
+                    ? (withQr ? 'Join me on OneChat — tap the link or scan the QR code:\n' : 'Join me on OneChat:\n') + link
+                    : 'Join me on OneChat — scan the QR code.';
+                const data = { title: 'OneChat — Join me', text };
+                if (withQr) data.files = [file];
+                try {
+                    if (withQr ? canShareFile : !!navigator.share) { await navigator.share(data); m.remove(); return; }
+                } catch (err) { if (err && err.name === 'AbortError') return; }
+                // no share sheet: copy what was chosen instead
+                try {
+                    if (withQr) {
+                        const img = `<img src="${BASIC.qrCanvas.toDataURL('image/png')}" alt="Join me on OneChat" width="280">`;
+                        const html = withLink
+                            ? `<p>Join me on OneChat — tap the link or scan the QR code:</p><p><a href="${link}">${img}</a></p><p><a href="${link}">${link}</a></p>`
+                            : `<p>${img}</p>`;
+                        const items = { 'text/html': new Blob([html], { type: 'text/html' }) };
+                        if (withLink) items['text/plain'] = new Blob([text], { type: 'text/plain' }); else items['image/png'] = blob;
+                        await navigator.clipboard.write([new ClipboardItem(items)]);
+                    } else {
+                        await navigator.clipboard.writeText(text);
+                    }
+                    showToast('Copied — paste it into any chat app.', 'success');
+                    m.remove();
+                } catch (err) { showToast('Sharing is not available here — use Copy image or Copy code as text.', 'warn'); }
+            });
         }
 
         function basicCopyText() {
