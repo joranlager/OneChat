@@ -392,9 +392,6 @@
                 </section>
 
                 <p id="basic-status-line" class="hidden text-xs text-center text-slate-400"></p>
-                <div class="text-center">
-                    <button id="basic-btn-reset" onclick="basicReset(true)" class="hidden text-xs text-slate-400 hover:text-white underline underline-offset-2">Start over</button>
-                </div>
 
                 <!-- Local date, time and timezone -->
                 <div class="pt-6 pb-2 text-center select-text">
@@ -6184,7 +6181,6 @@ if __name__ == "__main__":
             show('basic-qr-card', step === 'host-offer' || step === 'guest-answer');
             show('basic-scan-card', step === 'host-offer' || step === 'guest-scan');
             show('basic-done-card', step === 'connected');
-            show('basic-btn-reset', step !== 'choose');
             show('basic-step-dots', step === 'host-offer');
             if (step !== 'host-offer') basicEl('basic-steps').scrollLeft = 0;
             basicUpdateDots();
@@ -6413,7 +6409,7 @@ if __name__ == "__main__":
             if (BASIC.busy) return false;
             if (o.t === 'o') {
                 if (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer') {
-                    showToast('That is an Invitation, but you already have one open. Press “Start over” to join it instead.', 'warn');
+                    showToast('That is an Invitation, but you already have one open. Tap Connect to start over and join it instead.', 'warn');
                     return false;
                 }
                 if (BASIC.step === 'connected') return false;
@@ -6635,8 +6631,13 @@ if __name__ == "__main__":
 
         /* ----- Basic / Advanced view switching and Basic tabs ----- */
         function basicConnectTabClick() {
-            if (basicIsConnected()) forgetConnection();
-            else basicShowTab('connect');
+            if (basicIsConnected()) { forgetConnection(); return; }
+            // Already on Connect while a connection is being set up: offer to start over
+            if (BASIC.tab === 'connect' && BASIC.step !== 'choose') {
+                if (confirm('Start over? The connection you are setting up will be cancelled.')) basicReset(true);
+                return;
+            }
+            basicShowTab('connect');
         }
 
         function basicShowTab(tab, force) {
