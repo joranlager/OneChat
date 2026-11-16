@@ -32,11 +32,12 @@ jobs:
           cp -r icons _site/
 
       - name: Stamp build info
-        # Fills the commit hash and build time shown in the OneChat menu
+        # Fills the branch name, commit hash and build time shown in the OneChat menu
         run: |
           BUILD_TIME=$(date -u +%Y-%m-%dT%H:%M:%SZ)
-          sed -i "s/__BUILD_COMMIT__/${GITHUB_SHA}/; s/__BUILD_TIME__/${BUILD_TIME}/" _site/index.html
+          sed -i "s|__BUILD_COMMIT__|${GITHUB_SHA}|; s|__BUILD_TIME__|${BUILD_TIME}|; s|__BUILD_BRANCH__|${GITHUB_REF_NAME}|" _site/index.html
           grep -q "${GITHUB_SHA}" _site/index.html
+          grep -q "branch: '${GITHUB_REF_NAME}'" _site/index.html
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3

@@ -253,6 +253,7 @@
             <div id="about-popover" class="hidden absolute top-[54px] left-2 z-[70] w-72 max-w-[calc(100vw-1rem)] rounded-xl bg-slate-900 border border-slate-700 shadow-2xl p-3 text-xs text-slate-300 space-y-1 select-text">
                 <div class="font-bold text-white">OneChat</div>
                 <div>Made by J Lager</div>
+                <div class="font-mono text-[10px] text-slate-400 break-all">Branch <span id="about-branch">—</span></div>
                 <div class="font-mono text-[10px] text-slate-400 break-all">Commit <span id="about-commit">—</span></div>
                 <div class="font-mono text-[10px] text-slate-400" id="about-time">—</div>
             </div>
@@ -1059,7 +1060,7 @@
                 </div>
             </button>
 
-            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 select-text break-all">Commit <span id="build-commit">—</span> · <span id="build-time">—</span></div>
+            <div id="build-info" class="px-2.5 pt-2 border-t border-slate-800 text-[10px] font-mono text-slate-500 select-text break-all">Branch <span id="build-branch">—</span> · Commit <span id="build-commit">—</span> · <span id="build-time">—</span></div>
         </div>
 
         <!-- ONECHAT SETTINGS MODAL (TOP-RIGHT GEAR) -->
@@ -5379,14 +5380,16 @@ if __name__ == "__main__":
         document.getElementById('pm-name').addEventListener('input', () => profileRenderPreview());
 
         /* ---------- Build info (stamped by .github/workflows/pages.yml) ---------- */
-        const BUILD_INFO = { commit: '__BUILD_COMMIT__', time: '__BUILD_TIME__' };
+        const BUILD_INFO = { commit: '__BUILD_COMMIT__', time: '__BUILD_TIME__', branch: '__BUILD_BRANCH__' };
         (function showBuildInfo() {
             const cEl = document.getElementById('build-commit');
             const tEl = document.getElementById('build-time');
             if (!cEl || !tEl) return;
             const stamped = !BUILD_INFO.commit.startsWith('__');
-            if (!stamped) { cEl.textContent = 'local'; tEl.textContent = 'not built'; return; }
+            const bEl = document.getElementById('build-branch');
+            if (!stamped) { cEl.textContent = 'local'; tEl.textContent = 'not built'; if (bEl) bEl.textContent = 'local'; return; }
             cEl.textContent = BUILD_INFO.commit;
+            if (bEl) bEl.textContent = BUILD_INFO.branch.startsWith('__') ? 'unknown' : BUILD_INFO.branch;
             const d = new Date(BUILD_INFO.time);
             tEl.textContent = isNaN(d) ? BUILD_INFO.time : new Intl.DateTimeFormat('en-GB', {
                 dateStyle: 'medium', timeStyle: 'short', timeZone: 'Europe/Oslo'
@@ -5397,6 +5400,7 @@ if __name__ == "__main__":
             if (e) e.stopPropagation();
             const pop = document.getElementById('about-popover');
             document.getElementById('about-commit').textContent = document.getElementById('build-commit').textContent;
+            document.getElementById('about-branch').textContent = document.getElementById('build-branch').textContent;
             document.getElementById('about-time').textContent = document.getElementById('build-time').textContent;
             pop.classList.toggle('hidden');
         }
