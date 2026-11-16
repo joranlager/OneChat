@@ -188,6 +188,9 @@
         /* Basic / Advanced view switching */
         body.basic-mode .adv-only { display: none !important; }
         body:not(.basic-mode) .basic-only { display: none !important; }
+        /* OneChat tab is greyed out until a connection is established */
+        #basic-tab-onechat.oc-tab-locked, #basic-tab-onechat.oc-tab-locked i { color: #6e6e73 !important; }
+        #basic-tab-onechat.oc-tab-locked.bg-yellow-500 { background-color: #3a3a3c !important; color: #98989d !important; }
         @keyframes oc-spin { to { transform: rotate(360deg); } }
         @keyframes oc-fade-in { from { opacity: 0; } to { opacity: 1; } }
         @keyframes oc-pop { from { opacity: 0; transform: scale(.85); } to { opacity: 1; transform: scale(1); } }
@@ -263,7 +266,7 @@
                 <button id="basic-tab-connect" onclick="basicConnectTabClick()" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow">
                     <i id="basic-tab-connect-icon" class="fa-solid fa-qrcode"></i><span id="basic-tab-connect-label">Connect</span>
                 </button>
-                <button id="basic-tab-onechat" onclick="basicShowTab('onechat')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-amber-300 hover:text-yellow-200">
+                <button id="basic-tab-onechat" onclick="basicShowTab('onechat')" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 text-amber-300 hover:text-yellow-200 oc-tab-locked">
                     <i id="basic-tab-lock" class="fa-solid fa-lock text-[10px] text-rose-400"></i>
                     <i class="fa-solid fa-ghost text-yellow-400"></i><span>OneChat</span>
                 </button>
@@ -6213,6 +6216,7 @@ if __name__ == "__main__":
             const line = basicEl('basic-status-line');
             const lock = basicEl('basic-tab-lock');
             const connected = basicIsConnected();
+            basicEl('basic-tab-onechat').classList.toggle('oc-tab-locked', !connected);
             const pairing = !connected && (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer');
             const ice = APP_STATE.rtcPeer ? APP_STATE.rtcPeer.iceConnectionState : '';
 
