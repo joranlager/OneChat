@@ -1124,12 +1124,6 @@
                 </div>
             </button>
 
-            <button id="menu-swap-pip" onclick="toggleOneChatHamburgerMenu(); swapOneChatPipView();" class="hidden w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-emerald-300 font-semibold transition">
-                <i class="fa-solid fa-right-left text-base w-5 text-center"></i>
-                <div>
-                    <div>Swap Large / Small Camera Window</div>
-                </div>
-            </button>
 
             <button onclick="toggleOneChatHamburgerMenu(); clearOneChatFeed();" class="w-full p-2.5 rounded-xl bg-slate-900/90 hover:bg-slate-800 text-left flex items-center gap-2.5 text-rose-300 font-semibold transition">
                 <i class="fa-solid fa-broom text-base w-5 text-center"></i>
@@ -1174,10 +1168,6 @@
                     <video id="onechat-local-video" class="w-full h-full object-cover scale-x-[-1]" playsinline autoplay muted></video>
                     <canvas id="onechat-snap-canvas" class="hidden"></canvas>
 
-                    <!-- Swap Hint Badge shown on PiP window during call -->
-                    <div id="onechat-pip-swap-badge" class="oc-call-chrome hidden absolute top-2 right-2 px-2 py-0.5 rounded-full bg-black/75 border border-white/20 text-[9px] font-mono text-yellow-300 flex items-center gap-1 shadow">
-                        <i class="fa-solid fa-up-right-and-down-left-from-center"></i> Swap
-                    </div>
                     <div id="onechat-local-label" class="oc-call-chrome hidden absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/75 text-[9px] font-mono text-cyan-300">
                         You (<span id="onechat-local-role-tag">OneGiver</span>)
                     </div>
@@ -1210,10 +1200,6 @@
                         <i id="icon-onechat-cam" class="fa-solid fa-video text-xs"></i>
                     </button>
 
-                    <!-- Swap PiP Quick Button -->
-                    <button onclick="swapOneChatPipView()" class="w-11 h-11 rounded-full bg-black/70 hover:bg-black/90 border border-white/20 text-cyan-300 flex items-center justify-center transition" title="Switch between your camera and the peer's video">
-                        <i class="fa-solid fa-right-left text-xs"></i>
-                    </button>
 
                     <!-- Hangup Call Button (Shown when in active call) -->
                     <div id="btn-onechat-hangup" class="hidden flex items-center gap-2">
@@ -3543,12 +3529,6 @@ if __name__ == "__main__":
             }
             ONECHAT_STATE.localIsSmallPip = !ONECHAT_STATE.localIsSmallPip;
             applyOneChatVideoPipLayout();
-            showToast(
-                ONECHAT_STATE.localIsSmallPip
-                    ? `${getPeerRoleName()} is now shown large, and your camera is small`
-                    : `Your camera is now shown large, and ${getPeerRoleName()} is in the small window`,
-                'info'
-            );
         }
 
         function onVideoContainerClick(which) {
