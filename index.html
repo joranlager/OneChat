@@ -4038,6 +4038,7 @@ if __name__ == "__main__":
             ONECHAT_STATE.isVideoCall = withVideo;
             ONECHAT_STATE.localIsSmallPip = true;
             ONECHAT_STATE.callFull = withVideo;   // video calls start in full screen
+            hangupCtx();   // unlock audio now (a tap started this), so a hang-up sound from the peer can play later
             ONECHAT_STATE.isMuted = false;
             ONECHAT_STATE.isCameraOff = false;
             document.getElementById('icon-onechat-mute').className = 'fa-solid fa-microphone text-xs text-white';
@@ -4093,14 +4094,15 @@ if __name__ == "__main__":
             const sel = document.getElementById('onechat-hangup-sound');
             if (sel) sel.value = getHangupSound();
         })();
-        function playHangupSound() {
+        function playHangupSound(kind) {
+            if (kind !== 'slam' && kind !== 'disconnect') kind = getHangupSound();
             const ctx = hangupCtx();
             if (!ctx) return;
             const t0 = ctx.currentTime + 0.02;
             const out = ctx.createGain();
             out.gain.value = 0.9;
             out.connect(ctx.destination);
-            if (getHangupSound() === 'disconnect') {
+            if (kind === 'disconnect') {
                 // three falling beeps, like the line going dead
                 [620, 520, 420].forEach((f, i) => {
                     const o = ctx.createOscillator(), g = ctx.createGain();
@@ -4143,11 +4145,12 @@ if __name__ == "__main__":
             if (withSound) hangupCtx();   // unlock audio while the tap still counts as a user gesture
             const what = ONECHAT_STATE.isVideoCall ? 'video call' : 'call';
             if (!confirm('End the ' + what + '?')) return;
-            if (withSound) playHangupSound();
-            endOneChatCall();
+            const sound = withSound ? getHangupSound() : null;
+            if (sound) playHangupSound(sound);
+            endOneChatCall(false, sound);   // the other side plays the same sound
         }
 
-        function endOneChatCall(fromRemote = false) {
+        function endOneChatCall(fromRemote = false, hangupSound = null) {
             const wasActive = ONECHAT_STATE.inCall;
             ONECHAT_STATE.inCall = false;
             ONECHAT_STATE.callPhase = 'idle';
@@ -4170,7 +4173,9 @@ if __name__ == "__main__":
             applyOneChatVideoPipLayout();
 
             if (!fromRemote) {
-                sendOneChatPayload({ type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) });
+                const sig = { type: 'ONECHAT_CALL_SIGNAL', action: 'END', sender: getRoleName(APP_STATE.role) };
+                if (hangupSound) sig.sound = hangupSound;
+                sendOneChatPayload(sig);
             }
             if (wasActive) {
                 appendOneChatEntry('SYSTEM', `The call ended.`, true, 'call');
@@ -4219,6 +4224,7 @@ if __name__ == "__main__":
                     ONECHAT_STATE.callPhase = 'idle';
                     if (missed) appendOneChatEntry('SYSTEM', `Missed call from ${who}.`, false, 'call');
                 } else if (ONECHAT_STATE.inCall) {
+                    if (sig.sound === 'slam' || sig.sound === 'disconnect') playHangupSound(sig.sound);
                     endOneChatCall(true);
                 }
             }
