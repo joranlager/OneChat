@@ -331,14 +331,14 @@
                 <!-- QR output card (Offer or Answer) -->
                 <!-- Swipe indicator (only when both steps are shown) -->
                 <div id="basic-step-dots" class="hidden flex items-center justify-center gap-3 text-[11px] font-mono font-bold">
-                    <button id="basic-dot-1" onclick="basicGoToStep(0)" class="px-3 py-1 rounded-full border border-cyan-500/40 text-cyan-300">1 · Offer</button>
-                    <button id="basic-dot-2" onclick="basicGoToStep(1)" class="px-3 py-1 rounded-full border border-emerald-500/40 text-emerald-300">2 · Answer</button>
+                    <button id="basic-dot-1" onclick="basicGoToStep(0)" class="px-3 py-1 rounded-full border border-cyan-500/40 text-cyan-300">1 · Invitation</button>
+                    <button id="basic-dot-2" onclick="basicGoToStep(1)" class="px-3 py-1 rounded-full border border-emerald-500/40 text-emerald-300">2 · Accept</button>
                 </div>
                 <div id="basic-steps" class="flex items-start gap-3 overflow-x-auto snap-x snap-mandatory" style="scrollbar-width:none;overscroll-behavior-x:contain">
                 <section id="basic-qr-card" class="hidden hud-glass rounded-2xl p-4 space-y-3 w-full shrink-0 snap-center">
                     <div class="flex items-center gap-2">
                         <span id="basic-qr-badge" class="px-2 py-0.5 rounded-full bg-cyan-950 border border-cyan-500/40 text-cyan-300 text-[11px] font-mono font-bold">STEP 1</span>
-                        <h3 id="basic-qr-title" class="font-bold text-white text-base">Your Offer</h3>
+                        <h3 id="basic-qr-title" class="font-bold text-white text-base">Your Invitation</h3>
                     </div>
                     <div class="flex justify-center">
                         <img id="basic-qr-img" alt="QR code to copy, save or scan" class="w-full max-w-[320px] rounded-xl bg-white shadow-xl">
@@ -355,7 +355,7 @@
                 <section id="basic-scan-card" class="hidden hud-glass rounded-2xl p-4 space-y-3 w-full shrink-0 snap-center">
                     <div class="flex items-center gap-2">
                         <span id="basic-scan-badge" class="px-2 py-0.5 rounded-full bg-emerald-950 border border-emerald-500/40 text-emerald-300 text-[11px] font-mono font-bold">STEP 2</span>
-                        <h3 id="basic-scan-title" class="font-bold text-white text-base">Scan their Answer</h3>
+                        <h3 id="basic-scan-title" class="font-bold text-white text-base">Scan their Accept</h3>
                     </div>
                     <div id="basic-camera-wrap" class="hidden relative rounded-xl overflow-hidden bg-black aspect-square max-w-[320px] mx-auto border border-cyan-500/40">
                         <video id="basic-video" playsinline muted class="w-full h-full object-cover"></video>
@@ -6157,7 +6157,7 @@ if __name__ == "__main__":
             const isOffer = kind === 'offer';
             BASIC.qrCanvas = basicMakeQrCanvas(
                 isOffer ? joinLinkFor(code) : code,
-                isOffer ? 'OneChat — Join me' : 'OneChat — Answer',
+                isOffer ? 'OneChat — Join me' : 'OneChat — Accept',
                 isOffer ? 'Scan with your camera to open OneChat and join' : 'Scan with OneChat to finish connecting'
             );
             basicEl('basic-qr-img').src = BASIC.qrCanvas.toDataURL('image/png');
@@ -6177,15 +6177,15 @@ if __name__ == "__main__":
 
             if (step === 'host-offer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 1';
-                basicEl('basic-qr-title').textContent = 'Your Offer';
+                basicEl('basic-qr-title').textContent = 'Your Invitation';
                 basicEl('basic-scan-badge').textContent = 'STEP 2';
-                basicEl('basic-scan-title').textContent = 'Scan their Answer';
+                basicEl('basic-scan-title').textContent = 'Scan their Accept';
             } else if (step === 'guest-scan') {
                 basicEl('basic-scan-badge').textContent = 'STEP 1';
-                basicEl('basic-scan-title').textContent = 'Scan the Offer';
+                basicEl('basic-scan-title').textContent = 'Scan the Invitation';
             } else if (step === 'guest-answer') {
                 basicEl('basic-qr-badge').textContent = 'STEP 2';
-                basicEl('basic-qr-title').textContent = 'Your Answer';
+                basicEl('basic-qr-title').textContent = 'Your Accept';
             }
             basicEl('basic-btn-share').classList.toggle('hidden', !(navigator.canShare && navigator.share));
             basicUpdateStatus();
@@ -6318,7 +6318,7 @@ if __name__ == "__main__":
                 basicShowCode('offer', basicEncodeDesc(pc.localDescription));
                 BASIC.step = 'host-offer';
             } catch (err) {
-                showToast('Could not create the Offer: ' + err.message, 'error');
+                showToast('Could not create the Invitation: ' + err.message, 'error');
                 BASIC.step = 'choose';
             }
             BASIC.busy = false;
@@ -6347,9 +6347,9 @@ if __name__ == "__main__":
                 basicShowCode('answer', basicEncodeDesc(pc.localDescription));
                 BASIC.step = 'guest-answer';
                 basicStartPunching(pc, o.c);
-                showToast('Offer accepted. Send your Answer QR code back.', 'success');
+                showToast('Invitation accepted. Send your Accept QR code back.', 'success');
             } catch (err) {
-                showToast('Could not use that Offer: ' + err.message, 'error');
+                showToast('Could not use that Invitation: ' + err.message, 'error');
                 BASIC.step = 'guest-scan';
             }
             BASIC.busy = false;
@@ -6363,9 +6363,9 @@ if __name__ == "__main__":
             try {
                 await APP_STATE.rtcPeer.setRemoteDescription(new RTCSessionDescription({ type: 'answer', sdp: basicBuildSdp(o) }));
                 basicStartPunching(APP_STATE.rtcPeer, o.c);
-                showToast('Answer accepted — connecting…', 'success');
+                showToast('Accept received — connecting…', 'success');
             } catch (err) {
-                showToast('Could not use that Answer: ' + err.message, 'error');
+                showToast('Could not use that Accept: ' + err.message, 'error');
             }
             BASIC.busy = false;
             basicRender();
@@ -6398,7 +6398,7 @@ if __name__ == "__main__":
             if (BASIC.busy) return false;
             if (o.t === 'o') {
                 if (BASIC.step === 'host-offer' || BASIC.step === 'guest-answer') {
-                    showToast('That is an Offer, but you already have one open. Press “Start over” to join it instead.', 'warn');
+                    showToast('That is an Invitation, but you already have one open. Press “Start over” to join it instead.', 'warn');
                     return false;
                 }
                 if (BASIC.step === 'connected') return false;
@@ -6407,7 +6407,7 @@ if __name__ == "__main__":
             }
             if (o.t === 'a') {
                 if (BASIC.step !== 'host-offer') {
-                    showToast('That is an Answer. Start a connection first, then scan the Answer.', 'warn');
+                    showToast('That is an Accept. Start a connection first, then scan the Accept.', 'warn');
                     return false;
                 }
                 await basicAcceptAnswer(o);
