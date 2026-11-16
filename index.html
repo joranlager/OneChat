@@ -288,7 +288,8 @@
         <main id="basic-connect" class="flex-1 overflow-y-auto px-3 py-4 sm:py-8">
             <div class="mx-auto w-full max-w-xl space-y-4">
                 <div>
-                    <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Connect</h2>
+                    <h2 id="basic-heading" class="text-xl sm:text-2xl font-bold text-white tracking-tight">Feel like connecting?</h2>
+                    <p id="basic-teaser" class="text-sm text-slate-400 mt-1"></p>
                 </div>
 
                 <!-- Who you connect with -->
@@ -6177,6 +6178,37 @@ if __name__ == "__main__":
             basicEl('basic-qr-img').src = BASIC.qrCanvas.toDataURL('image/png');
         }
 
+        /* ---------- Connect page heading + a fresh teaser each time the home screen shows ---------- */
+        const BASIC_TEASERS = [
+            'Your contacts won’t message themselves. Probably.',
+            'Two QR codes and a little courage. That’s all it takes.',
+            'Somebody out there is waiting for your “hi”.',
+            'No servers, no accounts, no excuses.',
+            'Go on, the chat won’t start itself.',
+            'Be the one who reaches out today.',
+            'Start one, or join one. Both are very fashionable.',
+            'A direct line to someone nice is two taps away.',
+            'The best conversations begin with a little scan.',
+            'Even introverts deserve a good chat.',
+            'Your camera is ready. Are you?',
+            'No middleman. Just you and your favourite person.'
+        ];
+        let basicHeadingStep = null;
+        function basicUpdateHeading(step) {
+            if (step === basicHeadingStep) return;
+            basicHeadingStep = step;
+            const heading = basicEl('basic-heading');
+            const teaser = basicEl('basic-teaser');
+            const titles = { 'host-offer': 'Start the connection', 'guest-scan': 'Join the connection', 'guest-answer': 'Join the connection', 'connected': 'You’re connected' };
+            heading.textContent = titles[step] || 'Feel like connecting?';
+            if (step === 'choose') {
+                let pick;
+                do { pick = BASIC_TEASERS[Math.floor(Math.random() * BASIC_TEASERS.length)]; } while (BASIC_TEASERS.length > 1 && pick === teaser.textContent);
+                teaser.textContent = pick;
+            }
+            teaser.classList.toggle('hidden', step !== 'choose');
+        }
+
         function basicRender() {
             const show = (id, on) => basicEl(id).classList.toggle('hidden', !on);
             const step = BASIC.step;
@@ -6186,6 +6218,7 @@ if __name__ == "__main__":
             show('basic-done-card', step === 'connected');
             show('basic-step-dots', step === 'host-offer');
             if (step !== 'host-offer') basicEl('basic-steps').scrollLeft = 0;
+            basicUpdateHeading(step);
             basicUpdateDots();
 
             if (step === 'host-offer') {
