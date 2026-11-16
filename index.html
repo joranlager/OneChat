@@ -473,6 +473,18 @@
                     <input id="onechat-autoswap-toggle" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 text-emerald-400">
                 </label>
             </div>
+
+            <!-- Hang-up sound (played by the END button) -->
+            <div class="flex items-center justify-between gap-2 pt-2 border-t border-slate-800/80">
+                <span class="text-slate-200 font-semibold">Hang-up sound</span>
+                <span class="flex items-center gap-1.5">
+                    <select id="onechat-hangup-sound" onchange="saveHangupSound()" class="bg-slate-800 border border-slate-700 rounded-lg px-2 py-1 text-slate-100 text-[11px]">
+                        <option value="slam">Phone slam</option>
+                        <option value="disconnect">Disconnect tone</option>
+                    </select>
+                    <button type="button" onclick="playHangupSound()" title="Play" aria-label="Play hang-up sound" class="w-7 h-7 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center"><i class="fa-solid fa-play text-[10px]"></i></button>
+                </span>
+            </div>
         </div>
 
     <!-- ================= COMPACT RESPONSIVE TOP BAR HUD ================= -->
@@ -1222,9 +1234,14 @@
                     </button>
 
                     <!-- Hangup Call Button (Shown when in active call) -->
-                    <button id="btn-onechat-hangup" onclick="endOneChatCall()" class="hidden px-4 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg">
-                        <i class="fa-solid fa-phone-slash"></i> End
-                    </button>
+                    <div id="btn-onechat-hangup" class="hidden flex items-center gap-2">
+                        <button onclick="userEndOneChatCall(false)" title="End the call quietly" class="px-4 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5 shadow-lg">
+                            <i class="fa-solid fa-phone-slash"></i> End
+                        </button>
+                        <button onclick="userEndOneChatCall(true)" title="End the call with your hang-up sound" class="px-4 h-11 rounded-full bg-rose-700 hover:bg-rose-600 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-lg tracking-wide">
+                            <i class="fa-solid fa-volume-high"></i> END
+                        </button>
+                    </div>
                 </div>
             </div>
 
@@ -4053,6 +4070,81 @@ if __name__ == "__main__":
             appendOneChatEntry('SYSTEM', `📞 ${withVideo ? 'Video' : 'Audio'} call started`, true, 'call');
             spawn3DPacket(APP_STATE.role === 'A' ? 'A_TO_B' : 'B_TO_A', 'UDP', true, 0.25);
             return true;
+        }
+
+        /* ---------- Hang up: ask first; END also plays the chosen hang-up sound ---------- */
+        let hangupAudioCtx = null;
+        function hangupCtx() {
+            try {
+                if (!hangupAudioCtx) hangupAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                if (hangupAudioCtx.state === 'suspended') hangupAudioCtx.resume();
+            } catch (e) { hangupAudioCtx = null; }
+            return hangupAudioCtx;
+        }
+        function getHangupSound() {
+            try { return localStorage.getItem('onechat-hangup-sound') || 'slam'; } catch (e) { return 'slam'; }
+        }
+        function saveHangupSound() {
+            const v = document.getElementById('onechat-hangup-sound').value;
+            try { localStorage.setItem('onechat-hangup-sound', v); } catch (e) {}
+            playHangupSound();
+        }
+        (function initHangupSoundSetting() {
+            const sel = document.getElementById('onechat-hangup-sound');
+            if (sel) sel.value = getHangupSound();
+        })();
+        function playHangupSound() {
+            const ctx = hangupCtx();
+            if (!ctx) return;
+            const t0 = ctx.currentTime + 0.02;
+            const out = ctx.createGain();
+            out.gain.value = 0.9;
+            out.connect(ctx.destination);
+            if (getHangupSound() === 'disconnect') {
+                // three falling beeps, like the line going dead
+                [620, 520, 420].forEach((f, i) => {
+                    const o = ctx.createOscillator(), g = ctx.createGain();
+                    o.type = 'sine'; o.frequency.value = f;
+                    const t = t0 + i * 0.22;
+                    g.gain.setValueAtTime(0, t);
+                    g.gain.linearRampToValueAtTime(0.35, t + 0.01);
+                    g.gain.setValueAtTime(0.35, t + 0.15);
+                    g.gain.linearRampToValueAtTime(0, t + 0.17);
+                    o.connect(g).connect(out); o.start(t); o.stop(t + 0.2);
+                });
+                return;
+            }
+            // old-style handset slammed onto the cradle: heavy thud, a bounce, the bell rattle
+            const noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.4), ctx.sampleRate);
+            const d = noise.getChannelData(0);
+            for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
+            const impact = (t, level) => {
+                const src = ctx.createBufferSource(); src.buffer = noise;
+                const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 900;
+                const g = ctx.createGain();
+                g.gain.setValueAtTime(level, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+                src.connect(lp).connect(g).connect(out); src.start(t); src.stop(t + 0.2);
+                const o = ctx.createOscillator(), og = ctx.createGain();
+                o.type = 'sine'; o.frequency.setValueAtTime(140, t); o.frequency.exponentialRampToValueAtTime(55, t + 0.15);
+                og.gain.setValueAtTime(level * 0.9, t); og.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+                o.connect(og).connect(out); o.start(t); o.stop(t + 0.18);
+            };
+            impact(t0, 1.0);
+            impact(t0 + 0.085, 0.45);
+            // the phone's bell rings faintly from the jolt
+            [1180, 1460, 2350].forEach((f) => {
+                const o = ctx.createOscillator(), g = ctx.createGain();
+                o.type = 'sine'; o.frequency.value = f;
+                g.gain.setValueAtTime(0.06, t0 + 0.01); g.gain.exponentialRampToValueAtTime(0.0005, t0 + 0.7);
+                o.connect(g).connect(out); o.start(t0); o.stop(t0 + 0.72);
+            });
+        }
+        function userEndOneChatCall(withSound) {
+            if (withSound) hangupCtx();   // unlock audio while the tap still counts as a user gesture
+            const what = ONECHAT_STATE.isVideoCall ? 'video call' : 'call';
+            if (!confirm('End the ' + what + '?')) return;
+            if (withSound) playHangupSound();
+            endOneChatCall();
         }
 
         function endOneChatCall(fromRemote = false) {
