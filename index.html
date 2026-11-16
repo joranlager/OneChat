@@ -1188,32 +1188,14 @@
                     <input id="onechat-snap-caption" type="text" placeholder="Type a Snap caption..." class="w-full bg-transparent text-center text-white font-bold text-sm sm:text-base focus:outline-none">
                 </div>
 
-                <!-- Floating Camera Tools (Below Top Bar) -->
-                <div class="oc-call-chrome absolute top-16 left-4 right-4 z-30 flex items-center justify-between pointer-events-none">
-                    <div class="flex items-center gap-2 pointer-events-auto">
-                        <span id="onechat-call-badge" class="px-3 py-1 rounded-full bg-black/65 backdrop-blur-md border border-white/15 text-[11px] font-mono text-yellow-300 flex items-center gap-1.5">
-                            <span class="w-2 h-2 rounded-full bg-yellow-400 animate-pulse"></span>
-                            <span id="onechat-stage-status">Snap Camera Ready</span>
-                        </span>
-                    </div>
+                <!-- Call status (kept for the code, not shown) -->
+                <span id="onechat-call-badge" class="hidden"><span id="onechat-stage-status"></span></span>
 
-                    <div class="flex items-center gap-1.5 pointer-events-auto">
-                        <!-- Explicit Swap Main/PiP Video Button during Call -->
-                        <button id="btn-onechat-swap-pip" onclick="swapOneChatPipView()" class="hidden px-3 h-9 rounded-full bg-black/70 hover:bg-black/90 text-cyan-300 border border-cyan-400/40 flex items-center gap-1.5 text-[11px] font-bold shadow" title="Swap which camera window is large and small">
-                            <i class="fa-solid fa-right-left"></i>
-                            <span id="onechat-swap-btn-text">Show me large</span>
-                        </button>
-                        <button onclick="toggleOneChatCaption()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs font-bold" title="Add text to Snap">
-                            T
-                        </button>
-                        <button onclick="cycleOneChatFilter()" class="px-2.5 h-9 rounded-full bg-black/65 hover:bg-black/80 text-yellow-300 border border-white/15 flex items-center gap-1 text-[11px] font-semibold" title="Change AR/Color filter">
-                            <i class="fa-solid fa-wand-magic-sparkles"></i>
-                            <span id="onechat-filter-label">Normal</span>
-                        </button>
-                        <button onclick="flipOneChatCamera()" class="w-9 h-9 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/15 flex items-center justify-center text-xs" title="Flip camera">
-                            <i class="fa-solid fa-camera-rotate"></i>
-                        </button>
-                    </div>
+                <!-- Flip between the front and back camera -->
+                <div class="oc-call-chrome absolute top-4 right-4 z-30">
+                    <button onclick="flipOneChatCamera()" class="w-12 h-12 rounded-full bg-black/65 hover:bg-black/80 text-white border border-white/20 flex items-center justify-center text-lg" title="Switch between front and back camera" aria-label="Switch between front and back camera">
+                        <i class="fa-solid fa-camera-rotate"></i>
+                    </button>
                 </div>
 
                 <!-- Bottom Snapchat Shutter & Call Controls Bar -->
