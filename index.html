@@ -429,6 +429,12 @@
                 <input id="basic-use-stun" type="checkbox" checked class="w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
             </label>
 
+            <!-- Chat: what Enter/Return does -->
+            <label class="flex items-center justify-between text-slate-200 font-semibold cursor-pointer pt-2 border-t border-slate-800/80">
+                <span>Enter sends the message</span>
+                <input id="onechat-enter-sends" type="checkbox" checked onchange="saveEnterSends()" class="w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
+            </label>
+
             <!-- Ephemeral Timer Setting -->
             <div class="space-y-1 pt-2 border-t border-slate-800/80">
                 <label class="flex items-center justify-between text-slate-200 font-semibold cursor-pointer">
@@ -1222,25 +1228,15 @@
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                 </div>
 
-                <!-- Quick Reaction Bar -->
-                <div class="px-3 py-1.5 bg-slate-950/60 border-t border-slate-800/70 flex items-center justify-between text-sm">
-                    <span class="text-[10px] font-mono text-slate-400">Quick Snap:</span>
-                    <div class="flex items-center gap-2">
-                        <button onclick="sendOneChatReaction('👋 Hello from ' + getRoleName(APP_STATE.role) + '!')" class="hover:scale-125 transition">👋</button>
-                        <button onclick="sendOneChatReaction('⚡ Straight through the firewall!')" class="hover:scale-125 transition">⚡</button>
-                        <button onclick="sendOneChatReaction('🔥 Best P2P tunnel!')" class="hover:scale-125 transition">🔥</button>
-                        <button onclick="sendOneChatReaction('🎉 Video call without STUN!')" class="hover:scale-125 transition">🎉</button>
-                    </div>
-                </div>
 
                 <!-- Snapchat Pill Input Bar -->
-                <form onsubmit="handleOneChatSubmit(event)" class="p-2.5 bg-slate-900 border-t border-slate-800 flex items-center gap-2">
+                <form id="onechat-form" onsubmit="handleOneChatSubmit(event)" class="p-2.5 bg-slate-900 border-t border-slate-800 flex items-end gap-2">
                     <button type="button" onclick="openSnapCamera()" class="w-9 h-9 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 font-bold shadow" title="Take a picture Snap">
                         <i class="fa-solid fa-camera text-xs"></i>
                     </button>
                     <button type="button" onclick="document.getElementById('chat-attach-input').click()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center shrink-0" title="Send a file (any type)"><i class="fa-solid fa-paperclip text-xs"></i></button>
                     <input id="chat-attach-input" type="file" multiple class="hidden" onchange="handleFileSelect(event)">
-                    <input id="onechat-input" type="text" placeholder="Send a chat to the peer..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
+                    <textarea id="onechat-input" rows="1" enterkeyhint="send" placeholder="Message" class="flex-1 min-h-[40px] max-h-[40px] resize-none overflow-y-hidden bg-slate-950 border border-slate-700/90 rounded-[20px] px-4 py-[9px] text-xs leading-[20px] text-white focus:border-slate-500 focus:outline-none"></textarea>
                     <button type="submit" class="px-4 min-h-[40px] rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0 transition">
                         <span>Send</span>
                         <i class="fa-solid fa-paper-plane text-[10px]"></i>
@@ -5860,6 +5856,53 @@ if __name__ == "__main__":
             TYPING.peerTimer = setTimeout(() => showPeerTyping(null, false), 6000);
         }
 
+        /* ---------- Message box: grows with the text (up to the top of the chat), Enter behaviour from Settings ---------- */
+        function getEnterSends() {
+            try { return localStorage.getItem('onechat-enter-sends') !== '0'; } catch (e) { return true; }
+        }
+        function saveEnterSends() {
+            const on = document.getElementById('onechat-enter-sends').checked;
+            try { localStorage.setItem('onechat-enter-sends', on ? '1' : '0'); } catch (e) {}
+            applyEnterSends();
+        }
+        function applyEnterSends() {
+            const on = getEnterSends();
+            const box = document.getElementById('onechat-enter-sends');
+            if (box) box.checked = on;
+            const input = document.getElementById('onechat-input');
+            if (input) input.setAttribute('enterkeyhint', on ? 'send' : 'enter');
+        }
+        function autoSizeOneChatInput() {
+            const input = document.getElementById('onechat-input');
+            const col = document.getElementById('onechat-feed-col');
+            const form = document.getElementById('onechat-form');
+            if (!input || !col || !form) return;
+            const chrome = form.offsetHeight - input.offsetHeight;          // the form's padding around the box
+            const maxH = Math.max(40, col.clientHeight - chrome);          // never above the top of the chat area
+            input.style.maxHeight = maxH + 'px';
+            input.style.height = '40px';
+            const h = Math.min(Math.max(40, input.scrollHeight + 2), maxH);
+            input.style.height = h + 'px';
+            input.style.overflowY = input.scrollHeight + 2 > maxH ? 'auto' : 'hidden';
+        }
+        (function initOneChatInput() {
+            const input = document.getElementById('onechat-input');
+            if (!input) return;
+            applyEnterSends();
+            input.addEventListener('input', autoSizeOneChatInput);
+            window.addEventListener('resize', autoSizeOneChatInput);
+            input.addEventListener('keydown', (e) => {
+                if (e.key !== 'Enter' || e.isComposing || e.keyCode === 229) return;
+                const ctrl = e.ctrlKey || e.metaKey;
+                const send = getEnterSends() ? (!e.shiftKey && !e.altKey) : ctrl;
+                if (send) {
+                    e.preventDefault();
+                    document.getElementById('onechat-form').requestSubmit();
+                }
+                // otherwise the browser inserts a line break
+            });
+        })();
+
         (function initTypingInput() {
             const input = document.getElementById('onechat-input');
             if (!input) return;
@@ -5884,7 +5927,7 @@ if __name__ == "__main__":
                     <span class="font-bold text-[11px] uppercase tracking-wider ${nameColor}">${escHtml(sender)}</span>
                     <span class="text-[9px] font-mono text-slate-500">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 </div>
-                <div class="text-slate-100 text-xs leading-relaxed break-words">${text.replace(/</g, '&lt;')}</div>
+                <div class="text-slate-100 text-xs leading-relaxed break-words whitespace-pre-wrap">${text.replace(/</g, '&lt;')}</div>
             `;
             feed.appendChild(item);
             const typingEl = document.getElementById('onechat-typing');
@@ -5921,6 +5964,7 @@ if __name__ == "__main__":
             const text = input.value.trim();
             if (!text) return;
             input.value = '';
+            autoSizeOneChatInput();
             setOwnTyping(false);
 
             const myName = getRoleName(APP_STATE.role);
