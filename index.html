@@ -277,9 +277,6 @@
                     <i id="basic-status-dot" class="fa-solid fa-link-slash text-sm text-rose-400"></i>
                     <span id="basic-status-text" class="hidden sm:inline text-[11px] font-semibold tracking-wider">NOT CONNECTED</span>
                 </div>
-                <button onclick="setViewMode('advanced')" class="min-h-[34px] px-2.5 rounded-lg bg-slate-800/90 hover:bg-slate-700 border border-slate-600/70 text-slate-200 text-xs font-semibold flex items-center gap-1.5 transition" title="Show the full 3D lab and advanced tools">
-                    <i class="fa-solid fa-sliders"></i><span class="hidden sm:inline">Advanced</span>
-                </button>
             </div>
         </header>
 
@@ -5408,6 +5405,23 @@ if __name__ == "__main__":
             const pop = document.getElementById('about-popover');
             if (pop && !pop.classList.contains('hidden') && !pop.contains(e.target)) pop.classList.add('hidden');
         });
+
+        /* ---------- Tap the About card 4 times: open the Advanced view ---------- */
+        (function initFourTapAdvanced() {
+            const pop = document.getElementById('about-popover');
+            if (!pop) return;
+            let taps = [];
+            pop.addEventListener('pointerup', () => {
+                const now = Date.now();
+                taps = taps.filter(t => now - t < 1500);
+                taps.push(now);
+                if (taps.length >= 4) {
+                    taps = [];
+                    pop.classList.add('hidden');
+                    setViewMode('advanced');
+                }
+            });
+        })();
 
         /* ---------- Tap the empty space on the Connect screen 4 times: full refresh ---------- */
         (function initFourTapRefresh() {
