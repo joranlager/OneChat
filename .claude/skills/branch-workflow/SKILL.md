@@ -14,3 +14,4 @@ Never commit new features or fixes directly to `main`.
 3. Do the work and commit on that branch. Push it with `git push -u origin <branch>`.
 4. Merge into `main` only when the user explicitly asks (e.g. "merge it"). Then merge, push `main`, and mention that the branch can be deleted.
 5. If already on a feature/fix branch for the same task, keep using it; start a new branch for unrelated work.
+6. Pushing a `feature/**` or `fix/**` branch deploys it to the public GitHub Pages site (see `.github/workflows/pages.yml`), so push after each change the user should see. Merging to `main` redeploys `main`.

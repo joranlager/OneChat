@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OneChat — Offline Direct P2P Connection</title>
     <meta name="description" content="Direct peer-to-peer chat, snaps and video calls — no servers, no accounts.">
-    <meta name="theme-color" content="#050811">
+    <meta name="theme-color" content="#000000">
     <!-- Link preview card (Messenger, Snapchat, iMessage, Slack …). The join code after # never reaches the server. -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="OneChat">
@@ -45,19 +45,35 @@
             theme: {
                 extend: {
                     fontFamily: {
-                        sans: ['Inter', 'sans-serif'],
-                        mono: ['JetBrains Mono', 'monospace'],
+                        sans: ['-apple-system', 'BlinkMacSystemFont', '"SF Pro Text"', '"SF Pro Display"', 'Inter', 'system-ui', 'sans-serif'],
+                        mono: ['ui-monospace', '"SF Mono"', 'SFMono-Regular', 'Menlo', '"JetBrains Mono"', 'monospace'],
                     },
+                    // Apple system colours (dark appearance), mapped onto the colour families the markup uses
                     colors: {
+                        // grays: label / fill / grouped-background levels
+                        slate: { 50: '#ffffff', 100: '#f5f5f7', 200: '#e5e5ea', 300: '#c7c7cc', 400: '#98989d', 500: '#6e6e73', 600: '#48484a', 700: '#3a3a3c', 800: '#2c2c2e', 900: '#1c1c1e', 950: '#111113' },
+                        // systemBlue (accent)
+                        cyan: { 100: '#d6ebff', 200: '#a8d4ff', 300: '#64b0ff', 400: '#409cff', 500: '#2b90ff', 600: '#0a84ff', 700: '#0071e3', 800: '#0a4a8f', 900: '#0b345f', 950: '#0a2038' },
+                        // systemGreen
+                        emerald: { 100: '#d9f7e0', 200: '#a9eeb8', 300: '#6fe088', 400: '#30d158', 500: '#30d158', 600: '#28b14b', 700: '#1f8a3a', 800: '#17602a', 900: '#12421f', 950: '#0c2a15' },
+                        // systemOrange
+                        amber: { 100: '#ffecd1', 200: '#ffd9a3', 300: '#ffbd5c', 400: '#ff9f0a', 500: '#ff9f0a', 600: '#e08600', 700: '#b36b00', 800: '#7a4a00', 900: '#4d2f00', 950: '#2e1c00' },
+                        orange: { 300: '#ffbd5c', 400: '#ff9f0a', 500: '#ff9f0a', 950: '#2e1c00' },
+                        // systemYellow
+                        yellow: { 100: '#fff7cc', 200: '#ffee99', 300: '#ffe04d', 400: '#ffd60a', 500: '#f5c400', 600: '#c79f00' },
+                        // systemRed
+                        rose: { 100: '#ffe1df', 200: '#ffbdb8', 300: '#ff8078', 400: '#ff453a', 500: '#ff453a', 600: '#e0352b', 700: '#b3271f', 800: '#7d1c16', 900: '#4f120e', 950: '#310b09' },
+                        // systemIndigo
+                        indigo: { 200: '#c9c8f7', 300: '#9f9df0', 400: '#7d7aff', 500: '#5e5ce6', 900: '#211f5c', 950: '#15143a' },
                         cyber: {
-                            bg: '#060a12',
-                            panel: 'rgba(11, 18, 31, 0.86)',
-                            border: 'rgba(56, 189, 248, 0.25)',
-                            cyan: '#06b6d4',
-                            emerald: '#10b981',
-                            amber: '#f59e0b',
-                            rose: '#f43f5e',
-                            indigo: '#6366f1'
+                            bg: '#000000',
+                            panel: 'rgba(28, 28, 30, 0.82)',
+                            border: 'rgba(255, 255, 255, 0.1)',
+                            cyan: '#0a84ff',
+                            emerald: '#30d158',
+                            amber: '#ff9f0a',
+                            rose: '#ff453a',
+                            indigo: '#5e5ce6'
                         }
                     }
                 }
@@ -86,8 +102,11 @@
             width: 100%;
             height: 100dvh;
             overflow: hidden;
-            background-color: #050811;
-            color: #e2e8f0;
+            background-color: #000000;
+            color: #f5f5f7;
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", Inter, system-ui, sans-serif;
+            -webkit-font-smoothing: antialiased;
+            letter-spacing: -0.01em;
             overscroll-behavior: none;
         }
         #webgl-container {
@@ -99,11 +118,11 @@
             touch-action: none;
         }
         .hud-glass {
-            background: rgba(9, 15, 28, 0.88);
-            backdrop-filter: blur(16px);
-            -webkit-backdrop-filter: blur(16px);
-            border: 1px solid rgba(56, 189, 248, 0.22);
-            box-shadow: 0 12px 35px -8px rgba(0, 0, 0, 0.75), 0 0 20px rgba(6, 182, 212, 0.08);
+            background: rgba(28, 28, 30, 0.82);
+            backdrop-filter: saturate(180%) blur(20px);
+            -webkit-backdrop-filter: saturate(180%) blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: none;
         }
         .safe-bottom {
             padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
@@ -114,10 +133,10 @@
             height: 5px;
         }
         ::-webkit-scrollbar-track {
-            background: rgba(15, 23, 42, 0.4);
+            background: transparent;
         }
         ::-webkit-scrollbar-thumb {
-            background: rgba(56, 189, 248, 0.35);
+            background: rgba(255, 255, 255, 0.22);
             border-radius: 9999px;
         }
         .no-scrollbar::-webkit-scrollbar {
@@ -181,14 +200,14 @@
 <body class="font-sans antialiased select-none basic-mode">
 
     <!-- Splash screen (skipped right after a refresh / update reload) -->
-    <div id="oc-splash" style="position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:radial-gradient(circle at 50% 40%,#0e2440,#050811 70%);color:#e2e8f0;font-family:Inter,system-ui,sans-serif;transition:opacity .5s ease">
+    <div id="oc-splash" style="position:fixed;inset:0;z-index:500;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:20px;background:#000;color:#f5f5f7;font-family:-apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif;transition:opacity .5s ease">
         <div style="position:relative;width:112px;height:112px;animation:oc-pop .5s ease-out">
-            <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin 1.4s linear infinite"></div>
+            <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:#0a84ff;animation:oc-spin 1.4s linear infinite"></div>
             <img src="icons/logo.webp?v=3" alt="" style="position:absolute;inset:16px;width:80px;height:80px;border-radius:18px;object-fit:contain">
         </div>
         <div style="text-align:center;animation:oc-fade-in .8s ease-out">
-            <div style="font-weight:800;font-size:28px;letter-spacing:-.01em;color:#fff">OneChat</div>
-            <div style="font-weight:400;font-size:13px;color:#94a3b8;margin-top:4px">by Jøran Lager</div>
+            <div style="font-weight:700;font-size:30px;letter-spacing:-.02em;color:#fff">OneChat</div>
+            <div style="font-weight:400;font-size:13px;color:#98989d;margin-top:4px">by Jøran Lager</div>
         </div>
     </div>
     <script>
@@ -215,7 +234,7 @@
     <div id="toast-container" class="fixed top-16 sm:top-20 left-1/2 -translate-x-1/2 z-[90] flex flex-col gap-2 w-[92vw] max-w-md pointer-events-none"></div>
 
         <!-- ================= BASIC VIEW: CONNECT + ONECHAT ONLY ================= -->
-    <div id="basic-view" class="fixed inset-0 z-[55] flex flex-col bg-[#050811] text-slate-200">
+    <div id="basic-view" class="fixed inset-0 z-[55] flex flex-col bg-black text-slate-200">
         <!-- Basic top bar -->
         <header id="basic-header" class="shrink-0 h-[52px] px-2 sm:px-3 flex items-center gap-2 sm:gap-3 hud-glass border-t-0 border-x-0 relative z-[65]">
             <!-- Site QR (flush against the brand) + brand -->
@@ -239,7 +258,7 @@
             </div>
 
             <!-- Section tabs -->
-            <nav class="flex items-center bg-slate-900/90 p-1 rounded-lg border border-slate-700/70 text-xs ml-1 sm:ml-3">
+            <nav class="flex items-center bg-slate-800 p-0.5 rounded-[9px] text-xs ml-1 sm:ml-3">
                 <button id="basic-tab-connect" onclick="basicConnectTabClick()" class="px-3 py-1.5 rounded-md font-semibold flex items-center gap-1.5 bg-cyan-600 text-white shadow">
                     <i id="basic-tab-connect-icon" class="fa-solid fa-qrcode"></i><span id="basic-tab-connect-label">Connect</span>
                 </button>
@@ -264,7 +283,7 @@
         <main id="basic-connect" class="flex-1 overflow-y-auto px-3 py-4 sm:py-8">
             <div class="mx-auto w-full max-w-xl space-y-4">
                 <div>
-                    <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">Connect</h2>
+                    <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">Connect</h2>
                     <p class="text-sm text-slate-400 mt-1 leading-relaxed">Pair two devices directly — no servers, no accounts. Swap two QR codes, an <strong class="text-cyan-300">Offer</strong> and an <strong class="text-emerald-300">Answer</strong>, by camera or through any chat app.</p>
                 </div>
 
@@ -287,17 +306,25 @@
 
                 <!-- Step: choose -->
                 <section id="basic-step-choose" class="space-y-3">
-                    <div class="grid gap-3 sm:grid-cols-2">
-                        <button onclick="basicStartHost()" class="p-4 rounded-2xl bg-cyan-950/50 hover:bg-cyan-950/80 border border-cyan-500/50 text-left transition active:scale-[0.99]">
-                            <div class="flex items-center gap-2 text-cyan-300 font-bold text-base"><i class="fa-solid fa-paper-plane"></i> Start a connection</div>
-                            <p class="text-xs text-slate-400 mt-1">Create an Offer QR code and send it to the other person.</p>
+                    <div class="rounded-2xl bg-slate-900 overflow-hidden divide-y divide-white/10">
+                        <button onclick="basicStartHost()" class="w-full p-4 hover:bg-slate-800 active:bg-slate-800 text-left transition flex items-center gap-3">
+                            <span class="w-9 h-9 shrink-0 rounded-[10px] bg-cyan-600 text-white flex items-center justify-center"><i class="fa-solid fa-paper-plane text-sm"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-white font-semibold text-[15px]">Start a connection</span>
+                                <span class="block text-xs text-slate-400 mt-0.5">Create an Offer QR code and send it to the other person.</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
                         </button>
-                        <button onclick="basicChooseJoin()" class="p-4 rounded-2xl bg-emerald-950/40 hover:bg-emerald-950/70 border border-emerald-500/50 text-left transition active:scale-[0.99]">
-                            <div class="flex items-center gap-2 text-emerald-300 font-bold text-base"><i class="fa-solid fa-right-to-bracket"></i> Join a connection</div>
-                            <p class="text-xs text-slate-400 mt-1">Scan or paste an Offer QR code you received.</p>
+                        <button onclick="basicChooseJoin()" class="w-full p-4 hover:bg-slate-800 active:bg-slate-800 text-left transition flex items-center gap-3">
+                            <span class="w-9 h-9 shrink-0 rounded-[10px] bg-emerald-500 text-white flex items-center justify-center"><i class="fa-solid fa-right-to-bracket text-sm"></i></span>
+                            <span class="flex-1 min-w-0">
+                                <span class="block text-white font-semibold text-[15px]">Join a connection</span>
+                                <span class="block text-xs text-slate-400 mt-0.5">Scan or paste an Offer QR code you received.</span>
+                            </span>
+                            <i class="fa-solid fa-chevron-right text-xs text-slate-600"></i>
                         </button>
                     </div>
-                    <label class="flex items-start gap-2.5 p-3 rounded-xl bg-slate-900/70 border border-slate-800 text-xs text-slate-300 cursor-pointer">
+                    <label class="flex items-start gap-2.5 p-4 rounded-2xl bg-slate-900 text-xs text-slate-300 cursor-pointer">
                         <input id="basic-use-stun" type="checkbox" checked class="mt-0.5 w-4 h-4 rounded border-slate-700 text-cyan-500 focus:ring-0">
                         <span><strong class="text-white">Connect across the internet</strong> — uses a public STUN server (stun.l.google.com) to discover your public address. Leave this off for devices on the same network; nothing then leaves your devices. The joining side switches this on automatically when the Offer needs it.</span>
                     </label>
@@ -335,7 +362,7 @@
                         <div class="absolute inset-6 border-2 border-cyan-300/70 rounded-xl pointer-events-none"></div>
                     </div>
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 text-xs font-semibold">
-                        <button id="basic-btn-camera" onclick="basicToggleCamera()" class="min-h-[42px] px-3 rounded-xl bg-amber-600 hover:bg-amber-500 text-white flex items-center justify-center gap-1.5"><i class="fa-solid fa-camera"></i> <span>Scan with camera</span></button>
+                        <button id="basic-btn-camera" onclick="basicToggleCamera()" class="min-h-[42px] px-3 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white flex items-center justify-center gap-1.5"><i class="fa-solid fa-camera"></i> <span>Scan with camera</span></button>
                         <label class="min-h-[42px] px-3 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-100 flex items-center justify-center gap-1.5 cursor-pointer">
                             <i class="fa-solid fa-image"></i> Upload QR image
                             <input type="file" accept="image/*" class="hidden" onchange="basicImageFileChosen(event)">
@@ -362,13 +389,13 @@
                 <!-- Connected card -->
                 <section id="basic-done-card" class="hidden rounded-2xl p-5 bg-emerald-950/50 border border-emerald-400/50 text-center space-y-3">
                     <div class="w-14 h-14 mx-auto rounded-2xl bg-emerald-500/20 border border-emerald-400/60 flex items-center justify-center text-emerald-300 text-2xl"><i class="fa-solid fa-link"></i></div>
-                    <h3 class="text-lg font-extrabold text-white">Connected!</h3>
+                    <h3 class="text-lg font-bold text-white">Connected!</h3>
                     <div id="basic-done-peer" class="hidden flex items-center justify-center gap-2">
                         <div id="basic-done-avatar" class="w-10 h-10 rounded-full bg-slate-800 text-slate-300 flex items-center justify-center font-bold overflow-hidden"></div>
                         <span id="basic-done-name" class="text-sm font-bold text-emerald-200"></span>
                     </div>
                     <p class="text-xs text-slate-300">A direct, encrypted peer-to-peer link is open. Nothing goes through a server.</p>
-                    <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-sm inline-flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
+                    <button onclick="basicShowTab('onechat')" class="min-h-[46px] px-6 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-sm inline-flex items-center gap-2 transition active:scale-95"><i class="fa-solid fa-ghost"></i> Open OneChat</button>
                 </section>
 
                 <p id="basic-status-line" class="hidden text-xs text-center text-slate-400"></p>
@@ -633,7 +660,7 @@
                         </div>
                     </div>
                     <textarea id="remote-sdp-box" rows="2" placeholder="Press 'Scan QR' to read the QR code from the Initiator with the camera, or paste the code here..." class="w-full bg-slate-950 border border-slate-700 rounded-lg p-2.5 font-mono text-xs text-emerald-300 focus:border-emerald-500 focus:outline-none"></textarea>
-                    <button onclick="processRemoteSDP()" class="w-full min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold transition flex items-center justify-center gap-2 shadow-lg shadow-emerald-950/50">
+                    <button onclick="processRemoteSDP()" class="w-full min-h-[46px] py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 active:bg-emerald-700 text-white font-semibold transition flex items-center justify-center gap-2">
                         <i class="fa-solid fa-satellite-dish"></i>
                         <span id="btn-process-sdp-label">Activate Peer & Punch Firewall Hole</span>
                     </button>
@@ -941,25 +968,25 @@
     </nav>
 
     <!-- ================= DEDICATED ONECHAT SNAPCHAT-STYLE FULLSCREEN VIEW ================= -->
-    <section id="onechat-overlay" class="hidden fixed inset-0 w-screen h-[100dvh] z-[60] bg-[#06080f] flex flex-col overflow-hidden select-none">
+    <section id="onechat-overlay" class="hidden fixed inset-0 w-screen h-[100dvh] z-[60] bg-black flex flex-col overflow-hidden select-none">
 
         <!-- LOCKED GATE OVERLAY (Shown if P2P tunnel between OneGiver and OneReceiver is not active yet) -->
         <div id="onechat-locked-gate" class="absolute inset-0 z-50 bg-slate-950/95 backdrop-blur-xl flex flex-col items-center justify-center p-6 text-center">
-            <div class="w-20 h-20 rounded-3xl bg-yellow-400/15 border-2 border-yellow-400/50 flex items-center justify-center text-yellow-400 text-4xl mb-4 shadow-lg shadow-yellow-500/10 animate-bounce">
+            <div class="w-20 h-20 rounded-3xl bg-yellow-400/15 border-2 border-yellow-400/50 flex items-center justify-center text-yellow-400 text-4xl mb-4 animate-bounce">
                 <i class="fa-solid fa-ghost"></i>
             </div>
             <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-rose-950/90 border border-rose-500/40 text-rose-300 text-xs font-mono mb-2">
                 <i class="fa-solid fa-lock"></i> Requires Active P2P Connection
             </div>
-            <h2 class="text-xl sm:text-2xl font-extrabold text-white tracking-tight">OneChat is locked until the connection is established</h2>
+            <h2 class="text-xl sm:text-2xl font-bold text-white tracking-tight">OneChat is locked until the connection is established</h2>
             <p class="text-xs sm:text-sm text-slate-400 max-w-md mt-2 leading-relaxed">
                 Connect <strong class="text-cyan-300">OneGiver</strong> and <strong class="text-emerald-300">OneReceiver</strong> through the firewalls first to unlock direct chat, picture Snaps and P2P video calls.
             </p>
             <div class="flex flex-wrap items-center justify-center gap-3 mt-6">
-                <button onclick="basicShowTab('connect')" class="basic-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition transform active:scale-95">
+                <button onclick="basicShowTab('connect')" class="basic-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 transition transform active:scale-95">
                     <i class="fa-solid fa-qrcode"></i> Go to Connect
                 </button>
-                <button onclick="quickConnectForOneChat()" class="adv-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs sm:text-sm flex items-center gap-2 shadow-xl shadow-yellow-400/20 transition transform active:scale-95">
+                <button onclick="quickConnectForOneChat()" class="adv-only min-h-[46px] px-5 py-2.5 rounded-2xl bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs sm:text-sm flex items-center gap-2 transition transform active:scale-95">
                     <i class="fa-solid fa-bolt"></i> Punch Hole & Connect OneGiver ↔ OneReceiver Now
                 </button>
                 <button onclick="closeOneChatTab()" class="adv-only min-h-[46px] px-4 py-2.5 rounded-2xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-xs sm:text-sm transition">
@@ -969,7 +996,7 @@
         </div>
 
         <!-- TOP MINIMAL FLOATING BAR: HAMBURGER MENU (TOP-LEFT), PEER PILL (CENTER), SETTINGS GEAR (TOP-RIGHT) -->
-        <div id="onechat-topbar" class="relative shrink-0 z-40 px-4 py-3 flex items-center justify-between gap-2 pointer-events-none bg-[#06080f] border-b border-slate-800/80">
+        <div id="onechat-topbar" class="relative shrink-0 z-40 px-4 py-3 flex items-center justify-between gap-2 pointer-events-none bg-black border-b border-slate-800/80">
             <!-- Top-Left: Hamburger Menu Button -->
             <button onclick="toggleOneChatHamburgerMenu()" class="w-11 h-11 rounded-2xl bg-black/65 hover:bg-black/85 backdrop-blur-xl border border-white/15 text-white flex items-center justify-center shadow-xl pointer-events-auto transition active:scale-95" title="Menu">
                 <i class="fa-solid fa-bars text-lg"></i>
@@ -987,7 +1014,7 @@
                 </div>
                 <div class="pr-1">
                     <div class="flex items-center gap-1.5">
-                        <span id="onechat-peer-title" class="font-extrabold text-xs sm:text-sm text-white">OneReceiver</span>
+                        <span id="onechat-peer-title" class="font-bold text-xs sm:text-sm text-white">OneReceiver</span>
                         <span id="onechat-call-timer" class="hidden px-2 py-0.5 rounded-full bg-rose-600 text-white font-mono text-[10px] font-bold">00:00</span>
                     </div>
                     <p id="onechat-role-subtitle" class="text-[10px] text-slate-300 leading-none">You are <strong class="text-cyan-300">OneGiver</strong></p>
@@ -995,7 +1022,7 @@
                 <button onclick="startOneChatCall(false)" id="btn-onechat-audiocall" class="w-8 h-8 rounded-full bg-slate-800/90 hover:bg-slate-700 text-cyan-300 flex items-center justify-center text-xs transition" title="Start P2P Audio Call">
                     <i class="fa-solid fa-phone"></i>
                 </button>
-                <button onclick="startOneChatCall(true)" id="btn-onechat-videocall" class="px-3 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5 shadow transition" title="Start P2P Video Call">
+                <button onclick="startOneChatCall(true)" id="btn-onechat-videocall" class="px-3 h-8 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5 shadow transition" title="Start P2P Video Call">
                     <i class="fa-solid fa-video"></i>
                     <span class="hidden sm:inline">Video Call</span>
                 </button>
@@ -1010,7 +1037,7 @@
         <!-- HAMBURGER SLIDE-OUT DRAWER (TOP-LEFT) -->
         <div id="onechat-hamburger-drawer" class="hidden absolute top-16 left-4 z-50 w-72 rounded-2xl hud-glass border border-white/15 p-3 shadow-2xl space-y-2 text-xs">
             <div class="px-2 py-1.5 border-b border-slate-800 flex items-center justify-between">
-                <span class="font-extrabold text-yellow-400 flex items-center gap-1.5">
+                <span class="font-bold text-yellow-400 flex items-center gap-1.5">
                     <i class="fa-solid fa-ghost"></i> OneChat Navigation
                 </span>
                 <button onclick="toggleOneChatHamburgerMenu()" class="text-slate-400 hover:text-white p-1">
@@ -1058,7 +1085,7 @@
             <div class="flex items-center justify-between border-b border-slate-800 pb-2">
                 <div class="flex items-center gap-2">
                     <i class="fa-solid fa-gear text-yellow-400"></i>
-                    <span class="font-extrabold text-white text-sm">OneChat Settings</span>
+                    <span class="font-bold text-white text-sm">OneChat Settings</span>
                 </div>
                 <button onclick="toggleOneChatSettingsModal()" class="text-slate-400 hover:text-white p-1">
                     <i class="fa-solid fa-xmark"></i>
@@ -1143,7 +1170,7 @@
                     <!-- Animated Cyber Peer Stream when Peer has no physical camera or before call -->
                     <canvas id="onechat-sim-remote-canvas" class="w-full h-full object-cover"></canvas>
                     <!-- Audio call: the other party's profile picture in its original aspect ratio -->
-                    <div id="onechat-audio-peer" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 bg-[#071324]">
+                    <div id="onechat-audio-peer" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 bg-slate-900">
                         <img id="onechat-audio-peer-img" alt="" class="max-w-full max-h-[70%] object-contain rounded-2xl shadow-2xl">
                         <div id="onechat-audio-peer-name" class="text-white font-bold text-base"></div>
                         <div class="text-emerald-300 text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Audio call</div>
@@ -1227,11 +1254,11 @@
             </div>
 
             <!-- RIGHT / BOTTOM STAGE: SNAPCHAT CONVERSATION FEED -->
-            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-[#0c101d] border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden">
+            <div id="onechat-feed-col" class="lg:col-span-12 flex flex-col bg-slate-950 border-t lg:border-t-0 lg:border-l border-slate-800/90 h-full overflow-hidden">
                 <!-- Snapchat Style Message List -->
                 <div id="onechat-feed" class="flex-1 p-3 overflow-y-auto space-y-2.5 text-xs">
                     <div class="p-3 rounded-2xl bg-slate-900/90 border border-slate-800 text-center space-y-1">
-                        <div class="text-yellow-400 font-extrabold text-xs">👻 OneGiver & OneReceiver Fullscreen</div>
+                        <div class="text-yellow-400 font-bold text-xs">👻 OneGiver & OneReceiver Fullscreen</div>
                         <p class="text-[11px] text-slate-400">During a video call your own camera is small in the corner by default. Tap the small window at any time to swap which one is large and small!</p>
                     </div>
                 </div>
@@ -1255,7 +1282,7 @@
                     <button type="button" onclick="document.getElementById('chat-attach-input').click()" class="w-9 h-9 rounded-full bg-slate-800 hover:bg-slate-700 text-slate-200 flex items-center justify-center shrink-0" title="Send a file (any type)"><i class="fa-solid fa-paperclip text-xs"></i></button>
                     <input id="chat-attach-input" type="file" multiple class="hidden" onchange="handleFileSelect(event)">
                     <input id="onechat-input" type="text" placeholder="Send a chat to the peer..." class="flex-1 min-h-[40px] bg-slate-950 border border-slate-700/90 rounded-full px-4 py-1.5 text-xs text-white focus:border-yellow-400 focus:outline-none">
-                    <button type="submit" class="px-4 min-h-[40px] rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1 shrink-0 transition">
+                    <button type="submit" class="px-4 min-h-[40px] rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0 transition">
                         <span>Send</span>
                         <i class="fa-solid fa-paper-plane text-[10px]"></i>
                     </button>
@@ -1268,7 +1295,7 @@
     <div id="snap-viewer-modal" class="hidden fixed inset-0 z-[70] bg-black flex flex-col items-center justify-center p-4">
         <div class="absolute top-4 right-4 flex items-center gap-2">
             <span class="text-xs text-slate-300 font-mono">Closes in</span>
-            <span id="snap-viewer-timer" class="w-9 h-9 rounded-full bg-yellow-400 text-slate-950 font-extrabold text-sm flex items-center justify-center">10</span>
+            <span id="snap-viewer-timer" class="w-9 h-9 rounded-full bg-yellow-400 text-slate-950 font-bold text-sm flex items-center justify-center">10</span>
         </div>
         <img id="snap-viewer-img" src="" alt="Snap" class="max-w-full max-h-[70dvh] rounded-2xl border border-yellow-400/40 shadow-2xl object-contain">
         <div id="snap-viewer-caption" class="mt-3 px-4 py-2 rounded-xl bg-black/80 text-white font-bold text-sm text-center"></div>
@@ -1281,7 +1308,7 @@
         </div>
         <div class="mt-4 flex items-center gap-3">
             <button id="snap-viewer-download" onclick="downloadCurrentSnap()" class="hidden px-4 h-11 rounded-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-download"></i> Download</button>
-            <button onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
+            <button onclick="replyToSnapWithSnap()" class="px-4 h-11 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-camera"></i> Reply with Snap</button>
             <button onclick="closeSnapViewer()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-xmark"></i> Close</button>
         </div>
     </div>
@@ -1310,7 +1337,7 @@
         </select>
         <div class="mt-4 flex items-center gap-3">
             <button onclick="closeAttachDialog()" class="px-4 h-11 rounded-full bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">Cancel</button>
-            <button onclick="confirmAttachSend()" class="px-5 h-11 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-paper-plane"></i> Send</button>
+            <button onclick="confirmAttachSend()" class="px-5 h-11 rounded-full bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-paper-plane"></i> Send</button>
         </div>
     </div>
 
@@ -1322,12 +1349,12 @@
                 <span class="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-2 border-slate-900 flex items-center justify-center text-slate-950 text-xs"><i id="onechat-call-modal-icon" class="fa-solid fa-phone"></i></span>
             </div>
             <div>
-                <div id="onechat-call-modal-title" class="text-white font-extrabold text-base">Incoming call</div>
+                <div id="onechat-call-modal-title" class="text-white font-bold text-base">Incoming call</div>
                 <div id="onechat-call-modal-sub" class="text-xs text-slate-400 mt-1"></div>
             </div>
             <div class="flex items-center justify-center gap-4">
                 <button id="onechat-call-modal-decline" onclick="declineOneChatCall()" class="px-5 h-11 rounded-full bg-rose-600 hover:bg-rose-500 text-white font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone-slash"></i> <span>Decline</span></button>
-                <button id="onechat-call-modal-accept" onclick="acceptOneChatCall()" class="px-5 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-extrabold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Accept</button>
+                <button id="onechat-call-modal-accept" onclick="acceptOneChatCall()" class="px-5 h-11 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Accept</button>
             </div>
         </div>
         <div id="call-self-wrap" class="hidden w-full max-w-xs">
@@ -2431,7 +2458,7 @@ if __name__ == "__main__":
                     text: compactQrString,
                     width: 220,
                     height: 220,
-                    colorDark: '#050811',
+                    colorDark: '#000000',
                     colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.L
                 });
@@ -2947,7 +2974,7 @@ if __name__ == "__main__":
             const badge = document.getElementById('conn-status-badge');
             const dot = document.getElementById('conn-status-dot');
             const text = document.getElementById('conn-status-text');
-            badge.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-400/60 text-emerald-300 shadow-lg shadow-emerald-950/50';
+            badge.className = 'flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-emerald-950/80 border border-emerald-400/60 text-emerald-300';
             dot.className = 'w-2 h-2 rounded-full bg-emerald-400 animate-ping';
             text.textContent = window.innerWidth < 640 ? 'P2P ACTIVE' : 'P2P TUNNEL ACTIVE';
 
@@ -3702,9 +3729,9 @@ if __name__ == "__main__":
                 }
                 const t = performance.now() * 0.002;
                 const grd = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-                grd.addColorStop(0, '#071324');
-                grd.addColorStop(0.5, '#0b2138');
-                grd.addColorStop(1, '#052e2b');
+                grd.addColorStop(0, '#1c1c1e');
+                grd.addColorStop(0.5, '#111113');
+                grd.addColorStop(1, '#000000');
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -3716,7 +3743,7 @@ if __name__ == "__main__":
                     const alpha = Math.max(0, 1 - (rad - 32) / 85) * 0.45;
                     ctx.beginPath();
                     ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-                    ctx.strokeStyle = ONECHAT_STATE.inCall ? `rgba(16, 185, 129, ${alpha})` : `rgba(250, 204, 21, ${alpha})`;
+                    ctx.strokeStyle = ONECHAT_STATE.inCall ? `rgba(48, 209, 88, ${alpha})` : `rgba(255, 214, 10, ${alpha})`;
                     ctx.lineWidth = 2.5;
                     ctx.stroke();
                 }
@@ -3724,18 +3751,18 @@ if __name__ == "__main__":
                 // Peer Avatar Circle
                 ctx.beginPath();
                 ctx.arc(cx, cy, 34, 0, Math.PI * 2);
-                ctx.fillStyle = '#0f172a';
+                ctx.fillStyle = '#1c1c1e';
                 ctx.fill();
                 ctx.lineWidth = 3;
-                ctx.strokeStyle = ONECHAT_STATE.inCall ? '#10b981' : '#facc15';
+                ctx.strokeStyle = ONECHAT_STATE.inCall ? '#30d158' : '#ffd60a';
                 ctx.stroke();
 
-                ctx.fillStyle = '#f8fafc';
+                ctx.fillStyle = '#f5f5f7';
                 ctx.font = 'bold 15px Inter, sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText(getPeerRoleName(), cx, cy + 56);
 
-                ctx.fillStyle = '#38bdf8';
+                ctx.fillStyle = '#0a84ff';
                 ctx.font = '11px JetBrains Mono, monospace';
                 const statusLine = ONECHAT_STATE.inCall
                     ? `DIRECT P2P VIDEO/AUDIO STREAM (${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort})`
@@ -4140,7 +4167,7 @@ if __name__ == "__main__":
             card.innerHTML = `
                 <span class="w-9 h-9 rounded-full bg-slate-800 ${accent} flex items-center justify-center shrink-0"><i class="fa-solid fa-copy"></i></span>
                 <button type="button" class="xfer-open flex-1 min-w-0 text-left" title="Show details for each file">
-                    <div class="font-extrabold text-[11px] uppercase tracking-wider ${accent}">${escHtml(sender || getPeerRoleName())}</div>
+                    <div class="font-bold text-[11px] uppercase tracking-wider ${accent}">${escHtml(sender || getPeerRoleName())}</div>
                     <div class="text-[11px] text-slate-200 truncate">${b.files.length} files · ${fmtBytes(b.files.reduce((a, f) => a + f.size, 0))}</div>
                     <div class="snap-status text-[10px] text-slate-400">${dir === 'out' ? 'Sending…' : 'Receiving…'}</div>
                     <div class="h-1 mt-1 rounded bg-slate-800 overflow-hidden"><div class="xfer-bar h-full bg-cyan-400" style="width:0%"></div></div>
@@ -4700,7 +4727,7 @@ if __name__ == "__main__":
             card.innerHTML = `
                 <span class="w-9 h-9 rounded-full bg-slate-800 ${accent} flex items-center justify-center shrink-0"><i class="fa-solid ${isImage ? 'fa-image' : 'fa-file'}"></i></span>
                 <button type="button" class="xfer-open flex-1 min-w-0 text-left" title="Show transfer details">
-                    <div class="font-extrabold text-[11px] uppercase tracking-wider ${accent}">${escHtml(meta.sender || getPeerRoleName())}</div>
+                    <div class="font-bold text-[11px] uppercase tracking-wider ${accent}">${escHtml(meta.sender || getPeerRoleName())}</div>
                     <div class="text-[11px] text-slate-200 truncate">${escHtml(t.name)}</div>
                     <div class="snap-status text-[10px] text-slate-400">${dir === 'out' ? 'Sending…' : 'Receiving…'}</div>
                     <div class="h-1 mt-1 rounded bg-slate-800 overflow-hidden"><div class="xfer-bar h-full bg-cyan-400" style="width:0%"></div></div>
@@ -4910,7 +4937,7 @@ if __name__ == "__main__":
             card.innerHTML = `
                 <span class="w-9 h-9 rounded-full bg-slate-800 text-rose-300 flex items-center justify-center shrink-0"><i class="fa-solid ${isImage ? 'fa-image' : 'fa-file'}"></i></span>
                 <div class="flex-1 min-w-0">
-                    <div class="font-extrabold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(meta.sender)}</div>
+                    <div class="font-bold text-[11px] uppercase tracking-wider text-rose-400">${escHtml(meta.sender)}</div>
                     <div class="snap-status text-[11px] text-slate-400">Sending…</div>
                 </div>`;
             SNAP_CARDS.set(meta.id, card);
@@ -4949,7 +4976,7 @@ if __name__ == "__main__":
                 card.innerHTML = `
                     <button onclick="openSnapViewer('${id}')" class="w-10 h-10 rounded-full bg-yellow-400 hover:bg-yellow-300 text-slate-950 flex items-center justify-center shrink-0 shadow transition active:scale-90" title="Open picture"><i class="fa-solid fa-image"></i></button>
                     <div class="flex-1 min-w-0">
-                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
+                        <div class="font-bold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
                         <div class="snap-status text-[11px] text-slate-400">${att.mode === 'ephemeral' ? 'Sent a picture — tap the symbol to view it once' : 'Sent a picture — tap the symbol to view, download allowed'}</div>
                     </div>
                     ${dl}
@@ -4962,7 +4989,7 @@ if __name__ == "__main__":
                 card.innerHTML = `
                     <span class="w-10 h-10 rounded-full bg-slate-800 text-yellow-300 flex items-center justify-center shrink-0"><i class="fa-solid fa-file"></i></span>
                     <div class="flex-1 min-w-0">
-                        <div class="font-extrabold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
+                        <div class="font-bold text-[11px] uppercase tracking-wider text-yellow-300">${sender}</div>
                         <div class="text-[11px] text-slate-200 truncate">${escHtml(att.name)}</div>
                         <div class="snap-status text-[10px] text-slate-500">${fmtBytes(att.size)}</div>
                     </div>
@@ -5446,14 +5473,14 @@ if __name__ == "__main__":
             const dc = APP_STATE.dataChannel;
             if (dc && dc.readyState === 'open' && !confirm('Refreshing ends the current connection. Refresh now?')) return;
             const ov = document.createElement('div');
-            ov.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:radial-gradient(circle at 50% 40%,#0e2440,#050811 70%);color:#e2e8f0;font:600 14px Inter,system-ui,sans-serif;animation:oc-fade-in .3s ease-out';
+            ov.style.cssText = 'position:fixed;inset:0;z-index:400;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;background:#000;color:#f5f5f7;font:600 14px -apple-system,BlinkMacSystemFont,Inter,system-ui,sans-serif;animation:oc-fade-in .3s ease-out';
             ov.innerHTML = `
                 <div style="position:relative;width:96px;height:96px;animation:oc-pop .35s ease-out">
-                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(34,211,238,.18);border-top-color:#22d3ee;border-right-color:#facc15;animation:oc-spin .9s linear infinite"></div>
+                    <div style="position:absolute;inset:0;border-radius:50%;border:3px solid rgba(255,255,255,.12);border-top-color:#0a84ff;animation:oc-spin .9s linear infinite"></div>
                     <img src="icons/logo.webp?v=3" alt="" style="position:absolute;inset:14px;width:68px;height:68px;border-radius:16px;object-fit:contain">
                 </div>
                 <div>Refreshing OneChat…</div>
-                <div style="font-weight:400;font-size:11px;color:#64748b">Getting the latest version</div>`;
+                <div style="font-weight:400;font-size:11px;color:#98989d">Getting the latest version</div>`;
             document.body.appendChild(ov);
             const minShow = new Promise(r => setTimeout(r, 1100));
             // pull a fresh copy past any cache before reloading
@@ -5526,7 +5553,7 @@ if __name__ == "__main__":
                 el = document.createElement('div');
                 el.id = 'onechat-typing';
                 el.className = 'pl-3 border-l-4 border-yellow-400/50 bg-slate-900/50 rounded-r-xl py-2 px-3 flex items-center gap-2 text-[11px] text-slate-300 italic';
-                el.innerHTML = '<span class="typing-name font-extrabold not-italic uppercase tracking-wider text-yellow-300/80"></span><span>is typing</span><span class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.15s"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.3s"></span></span>';
+                el.innerHTML = '<span class="typing-name font-bold not-italic uppercase tracking-wider text-yellow-300/80"></span><span>is typing</span><span class="flex gap-0.5"><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.15s"></span><span class="w-1 h-1 rounded-full bg-slate-300 animate-bounce" style="animation-delay:.3s"></span></span>';
             }
             el.querySelector('.typing-name').textContent = sender || getPeerRoleName();
             const nearBottom = feed.scrollHeight - feed.scrollTop - feed.clientHeight < 60;
@@ -5557,7 +5584,7 @@ if __name__ == "__main__":
             item.className = `pl-3 border-l-4 ${barColor} bg-slate-900/75 rounded-r-xl py-2 px-3 transition-all duration-300`;
             item.innerHTML = `
                 <div class="flex items-center justify-between mb-0.5">
-                    <span class="font-extrabold text-[11px] uppercase tracking-wider ${nameColor}">${escHtml(sender)}</span>
+                    <span class="font-bold text-[11px] uppercase tracking-wider ${nameColor}">${escHtml(sender)}</span>
                     <span class="text-[9px] font-mono text-slate-500">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</span>
                 </div>
                 <div class="text-slate-100 text-xs leading-relaxed break-words">${text.replace(/</g, '&lt;')}</div>
@@ -6114,13 +6141,13 @@ if __name__ == "__main__":
             x.imageSmoothingEnabled = false;
             x.drawImage(src, 50, 40, 460, 460);
             x.textAlign = 'center';
-            x.fillStyle = '#0f172a';
+            x.fillStyle = '#1c1c1e';
             x.font = 'bold 32px Arial, Helvetica, sans-serif';
             x.fillText(title, W / 2, 560);
-            x.fillStyle = '#334155';
+            x.fillStyle = '#3a3a3c';
             x.font = '21px Arial, Helvetica, sans-serif';
             x.fillText(subtitle, W / 2, 600);
-            x.fillStyle = '#64748b';
+            x.fillStyle = '#98989d';
             x.font = '17px Arial, Helvetica, sans-serif';
             x.fillText('joranlager.github.io/OneChat', W / 2, 650);
             tmp.remove();
@@ -6808,7 +6835,7 @@ if __name__ == "__main__":
                     text: 'https://joranlager.github.io/OneChat/',
                     width: 40,
                     height: 40,
-                    colorDark: '#050811',
+                    colorDark: '#000000',
                     colorLight: '#ffffff',
                     correctLevel: QRCode.CorrectLevel.M
                 });
