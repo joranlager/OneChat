@@ -29,7 +29,7 @@ jobs:
         run: |
           mkdir -p _site
           cp index.html manifest.webmanifest OneChat.webp _site/
-          cp -r icons _site/
+          cp -r icons sounds _site/
 
       - name: Stamp build info
         # Fills the branch name, commit hash and build time shown in the OneChat menu

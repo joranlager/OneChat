@@ -4039,6 +4039,7 @@ if __name__ == "__main__":
             ONECHAT_STATE.localIsSmallPip = true;
             ONECHAT_STATE.callFull = withVideo;   // video calls start in full screen
             hangupCtx();   // unlock audio now (a tap started this), so a hang-up sound from the peer can play later
+            loadSlamSound();
             ONECHAT_STATE.isMuted = false;
             ONECHAT_STATE.isCameraOff = false;
             document.getElementById('icon-onechat-mute').className = 'fa-solid fa-microphone text-xs text-white';
@@ -4082,6 +4083,20 @@ if __name__ == "__main__":
             } catch (e) { hangupAudioCtx = null; }
             return hangupAudioCtx;
         }
+        // The phone-slam recording, decoded once and kept for instant playback
+        let slamBuffer = null, slamLoading = null;
+        function loadSlamSound() {
+            const ctx = hangupCtx();
+            if (!ctx || slamBuffer) return Promise.resolve(slamBuffer);
+            if (!slamLoading) {
+                slamLoading = fetch('sounds/phone-slam.wav')
+                    .then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); })
+                    .then(buf => new Promise((res, rej) => ctx.decodeAudioData(buf, res, rej)))
+                    .then(b => (slamBuffer = b))
+                    .catch(() => { slamLoading = null; return null; });
+            }
+            return slamLoading;
+        }
         function getHangupSound() {
             try { return localStorage.getItem('onechat-hangup-sound') || 'slam'; } catch (e) { return 'slam'; }
         }
@@ -4094,6 +4109,8 @@ if __name__ == "__main__":
             const sel = document.getElementById('onechat-hangup-sound');
             if (sel) sel.value = getHangupSound();
         })();
+        // fetch the recording early; decoding waits for the first tap that unlocks audio
+        document.addEventListener('pointerdown', function warmSlam() { loadSlamSound(); document.removeEventListener('pointerdown', warmSlam); }, { once: true });
         function playHangupSound(kind) {
             if (kind !== 'slam' && kind !== 'disconnect') kind = getHangupSound();
             const ctx = hangupCtx();
@@ -4116,7 +4133,12 @@ if __name__ == "__main__":
                 });
                 return;
             }
-            // old-style handset slammed onto the cradle: heavy thud, a bounce, the bell rattle
+            // old-style handset slammed onto the cradle: the recording (a generated stand-in if it can't load)
+            const playBuf = (buf, t) => { const src = ctx.createBufferSource(); src.buffer = buf; src.connect(out); src.start(t); };
+            if (slamBuffer) { playBuf(slamBuffer, t0); return; }
+            loadSlamSound().then(buf => buf ? playBuf(buf, ctx.currentTime + 0.01) : synthSlam(ctx, out, ctx.currentTime + 0.01));
+        }
+        function synthSlam(ctx, out, t0) {
             const noise = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 0.4), ctx.sampleRate);
             const d = noise.getChannelData(0);
             for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
