@@ -195,16 +195,6 @@
             height: 100dvh !important; min-height: 0 !important;
         }
         body.oc-call-full .oc-call-chrome { display: none !important; }
-        /* Audio call: ripples spreading out from the other person's picture */
-        .oc-ripple {
-            position: absolute; inset: 0; border-radius: 1rem; pointer-events: none;
-            border: 2px solid rgba(48, 209, 88, .75);
-            animation: oc-ripple 2.4s cubic-bezier(.2, .6, .35, 1) infinite;
-        }
-        @keyframes oc-ripple {
-            0% { inset: 0; border-radius: 1rem; opacity: .9; }
-            100% { inset: -36px; border-radius: 2.6rem; opacity: 0; }
-        }
         /* OneChat tab is greyed out until a connection is established */
         #basic-tab-onechat.oc-tab-locked, #basic-tab-onechat.oc-tab-locked i { color: #6e6e73 !important; }
         #basic-tab-onechat.oc-tab-locked.bg-yellow-500 { background-color: #3a3a3c !important; color: #98989d !important; }
@@ -1168,13 +1158,7 @@
                     <canvas id="onechat-sim-remote-canvas" class="w-full h-full object-cover"></canvas>
                     <!-- Audio call: the other party's profile picture in its original aspect ratio -->
                     <div id="onechat-audio-peer" class="hidden absolute inset-0 flex flex-col items-center justify-center gap-5 p-6 pb-24 bg-slate-900 overflow-hidden">
-                        <div class="relative">
-                            <!-- ripples spreading out from the picture while the call is on -->
-                            <span class="oc-ripple" style="animation-delay:0s"></span>
-                            <span class="oc-ripple" style="animation-delay:.8s"></span>
-                            <span class="oc-ripple" style="animation-delay:1.6s"></span>
-                            <img id="onechat-audio-peer-img" alt="" class="relative block max-w-[60vw] max-h-[26dvh] object-contain rounded-2xl shadow-2xl">
-                        </div>
+                        <img id="onechat-audio-peer-img" alt="" class="hidden">
                         <div id="onechat-audio-peer-name" class="text-white font-bold text-base"></div>
                         <div class="text-emerald-300 text-xs flex items-center gap-1.5"><i class="fa-solid fa-phone"></i> Audio call</div>
                     </div>
@@ -1591,7 +1575,7 @@
         function updateAudioCallPeerPhoto() {
             const box = document.getElementById('onechat-audio-peer');
             if (!box) return;
-            const show = !!(ONECHAT_STATE.inCall && !ONECHAT_STATE.isVideoCall && PEER_PROFILE.photo);
+            const show = false;   // the call canvas now draws the round picture with the ripples
             box.classList.toggle('hidden', !show);
             if (show) {
                 const img = document.getElementById('onechat-audio-peer-img');
@@ -3790,39 +3774,56 @@ if __name__ == "__main__":
                 ctx.fillStyle = grd;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                // Animated P2P pulse rings for peer avatar
+                // Peer avatar: their profile picture in a circle when they have one
                 const cx = canvas.width / 2;
                 const cy = canvas.height / 2 - 10;
-                for (let i = 0; i < 3; i++) {
-                    const rad = 32 + ((t * 25 + i * 28) % 85);
-                    const alpha = Math.max(0, 1 - (rad - 32) / 85) * 0.45;
-                    ctx.beginPath();
-                    ctx.arc(cx, cy, rad, 0, Math.PI * 2);
-                    ctx.strokeStyle = ONECHAT_STATE.inCall ? `rgba(48, 209, 88, ${alpha})` : `rgba(255, 255, 255, ${alpha})`;
-                    ctx.lineWidth = 2.5;
-                    ctx.stroke();
+                const photo = PEER_PROFILE && PEER_PROFILE.photo;
+                if (photo && (!ONECHAT_STATE.peerImg || ONECHAT_STATE.peerImg.src !== photo)) {
+                    ONECHAT_STATE.peerImg = new Image();
+                    ONECHAT_STATE.peerImg.src = photo;
                 }
+                const img = photo && ONECHAT_STATE.peerImg && ONECHAT_STATE.peerImg.complete && ONECHAT_STATE.peerImg.naturalWidth ? ONECHAT_STATE.peerImg : null;
+                const R = img ? 60 : 34;
+                const ringColor = (a) => ONECHAT_STATE.inCall ? `rgba(48, 209, 88, ${a})` : `rgba(255, 255, 255, ${a})`;
+                const drawRings = (start, span) => {
+                    for (let i = 0; i < 3; i++) {
+                        const rad = start + ((t * 25 + i * span / 3) % span);
+                        const alpha = Math.max(0, 1 - (rad - start) / span) * 0.45;
+                        ctx.beginPath();
+                        ctx.arc(cx, cy, rad, 0, Math.PI * 2);
+                        ctx.strokeStyle = ringColor(alpha);
+                        ctx.lineWidth = 2.5;
+                        ctx.stroke();
+                    }
+                };
 
-                // Peer Avatar Circle
+                if (!img) drawRings(32, 85);   // no picture: rings spread out behind the avatar circle
                 ctx.beginPath();
-                ctx.arc(cx, cy, 34, 0, Math.PI * 2);
+                ctx.arc(cx, cy, R, 0, Math.PI * 2);
                 ctx.fillStyle = '#1c1c1e';
                 ctx.fill();
+                if (img) {
+                    // round picture, cropped to fill the circle
+                    const sc = Math.max((2 * R) / img.naturalWidth, (2 * R) / img.naturalHeight);
+                    const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.arc(cx, cy, R, 0, Math.PI * 2);
+                    ctx.clip();
+                    ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+                    ctx.restore();
+                }
+                ctx.beginPath();
+                ctx.arc(cx, cy, R, 0, Math.PI * 2);
                 ctx.lineWidth = 3;
                 ctx.strokeStyle = ONECHAT_STATE.inCall ? '#30d158' : '#ffffff';
                 ctx.stroke();
+                if (img) drawRings(R * 0.35, R + 60);   // picture: the same rings, drawn over it and out past its edge
 
                 ctx.fillStyle = '#f5f5f7';
-                ctx.font = 'bold 15px Inter, sans-serif';
+                ctx.font = 'bold 15px -apple-system, BlinkMacSystemFont, Inter, sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(getPeerRoleName(), cx, cy + 56);
-
-                ctx.fillStyle = '#0a84ff';
-                ctx.font = '11px JetBrains Mono, monospace';
-                const statusLine = ONECHAT_STATE.inCall
-                    ? `DIRECT P2P VIDEO/AUDIO STREAM (${APP_STATE.fwBWanIp}:${APP_STATE.fwBPort})`
-                    : `READY FOR SNAP & VIDEO CALL`;
-                ctx.fillText(statusLine, cx, cy + 76);
+                ctx.fillText(getPeerRoleName(), cx, cy + R + 24);
 
                 ONECHAT_STATE.simAnimFrame = requestAnimationFrame(renderLoop);
             };
